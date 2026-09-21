@@ -244,6 +244,26 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
 </main>
 
 <div id="toast"></div>
+<script>
+  /* Opened by double-clicking the file instead of through the server? Say so.
+     This has to be inline: on file:// the module script below never loads. */
+  if (location.protocol === 'file:') {
+    document.addEventListener('DOMContentLoaded', function () {
+      document.body.innerHTML =
+        '<div style="max-width:620px;margin:60px auto;padding:24px;border:1px solid #3a3a36;' +
+        'border-radius:10px;background:#1a1a19;font:15px/1.6 system-ui,sans-serif;color:#fff">' +
+        '<h1 style="font-size:18px;margin:0 0 10px">This page needs its local server</h1>' +
+        '<p style="color:#c3c2b7;margin:0 0 14px">The weapon catalog, the tuner and the script ' +
+        'generator all run in a small Node server, so opening the HTML file on its own gives you ' +
+        'an empty shell.</p>' +
+        '<p style="color:#c3c2b7;margin:0 0 8px">In a terminal, from the project folder:</p>' +
+        '<pre style="background:#0e0e0d;border:1px solid #3a3a36;border-radius:8px;padding:12px;' +
+        'font:13px ui-monospace,Menlo,Consolas,monospace;color:#d7d6cb;margin:0 0 14px">npm install\nnpm start</pre>' +
+        '<p style="color:#c3c2b7;margin:0">Then open <b>http://localhost:5173</b> — the address the ' +
+        'terminal prints when it starts.</p></div>';
+    });
+  }
+</script>
 <script type="module" src="/app.js"></script>
 </body>
 </html>

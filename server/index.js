@@ -169,9 +169,41 @@ export function createServer() {
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
-  createServer().listen(PORT, () => {
+
+/** Startup problems should read as instructions, not as a stack trace. */
+function start() {
+  const major = Number(process.versions.node.split('.')[0]);
+  if (major < 20) {
+    console.error(
+      `\n  This needs Node 20 or newer - you are on ${process.versions.node}.` +
+      '\n  Install a current version from https://nodejs.org and run "npm start" again.\n'
+    );
+    process.exit(1);
+  }
+
+  const server = createServer();
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `\n  Port ${PORT} is already taken - something else is using it` +
+        (PORT === 5173 ? ' (a Vite dev server, most likely).' : '.') +
+        `\n  Start it somewhere else instead:\n\n      PORT=5174 npm start\n` +
+        '\n  (on Windows PowerShell:  $env:PORT=5174; npm start)\n'
+      );
+    } else if (err.code === 'EACCES') {
+      console.error(`\n  Not allowed to listen on port ${PORT}. Try a port above 1024, e.g. PORT=5174 npm start\n`);
+    } else {
+      console.error(`\n  Could not start the server: ${err.message}\n`);
+    }
+    process.exit(1);
+  });
+
+  server.listen(PORT, () => {
     console.log(`\n  Sticky Aim Weapon Studio  ->  http://localhost:${PORT}`);
-    console.log(`  AI features: ${aiEnabled() ? `on (${MODEL})` : 'off (set ANTHROPIC_API_KEY to enable)'}\n`);
+    console.log(`  AI features: ${aiEnabled() ? `on (${MODEL})` : 'off (set ANTHROPIC_API_KEY to enable)'}`);
+    console.log('  Open that address in a browser. Ctrl+C here stops it.\n');
   });
 }
+
+if (isMain) start();
