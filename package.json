@@ -1,0 +1,16 @@
+{
+  "name": "sticky-aim-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Import weapons from any game and generate a tuned Cronus GPC script for each one.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0"
+  }
+}
