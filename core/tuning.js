@@ -15,8 +15,21 @@ export const DEFAULT_PROFILE = {
   sensitivity: 6,
   adsMultiplier: 0.85,
   responseCurve: 'standard',   // 'standard' | 'linear' | 'dynamic'
+  verticalSensMultiplier: 1,   // games with a separate vertical stick multiplier
+  fov: 0,                      // 0 = "use the game default"; otherwise your FOV slider
+  fovRelativeAds: false,       // the game's "ADS sens relative to FOV" style setting
+  aimAssist: 'standard',       // 'off' | 'standard' | 'strong' | 'precision'
   strength: 100,               // global trim, %
   deadzone: 5,                 // in-game right stick deadzone, %
+
+  /**
+   * Anything the tuner does not model natively. Each entry names a setting from
+   * your game, records its value, and says what it should do to the script:
+   * { id, name, value, affects: 'vertical'|'horizontal'|'sticky'|'rapidFire'|'none', adjust: -75..100 }
+   * `adjust` is a percentage applied to that target, so a setting you know makes
+   * a gun kick 10% harder is {affects: 'vertical', adjust: 10}.
+   */
+  customSettings: [],
   adsOnly: true,               // only compensate while aiming down sights
   rapidFire: 'auto',           // 'auto' | 'on' | 'off'
   hairTrigger: true,
@@ -38,6 +51,33 @@ export const DEFAULT_PROFILE = {
 };
 
 export const RAMP_SPEEDS = { instant: 0.25, fast: 0.6, normal: 1, slow: 1.7 };
+
+/** In-game aim assist setting -> how much artificial movement is still worth adding. */
+export const AIM_ASSIST_SETTINGS = {
+  off: { label: 'Off / none', sticky: 0 },
+  standard: { label: 'Standard', sticky: 1 },
+  strong: { label: 'Strong / high', sticky: 0.8 },
+  precision: { label: 'Precision / focusing', sticky: 0.85 }
+};
+
+export const CUSTOM_TARGETS = ['vertical', 'horizontal', 'sticky', 'rapidFire', 'none'];
+
+let customSeq = 0;
+
+/** Validate the user's own settings list; anything unusable is dropped, not guessed at. */
+export function normalizeCustomSettings(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row) => row && String(row.name || '').trim())
+    .slice(0, 24)
+    .map((row) => ({
+      id: String(row.id || `cs${++customSeq}`).slice(0, 40),
+      name: String(row.name).trim().slice(0, 48),
+      value: String(row.value ?? '').trim().slice(0, 32),
+      affects: CUSTOM_TARGETS.includes(row.affects) ? row.affects : 'none',
+      adjust: clamp(Math.round(Number(row.adjust) || 0), -75, 100)
+    }));
+}
 export const STICKY_SHAPES = ['circle', 'horizontal', 'vertical', 'diagonal'];
 export const STICKY_WHEN = ['ads', 'ads_fire', 'always'];
 
@@ -49,6 +89,11 @@ export function normalizeProfile(raw = {}) {
     sensitivity: clamp(Number(p.sensitivity) || DEFAULT_PROFILE.sensitivity, 0.5, 100),
     adsMultiplier: clamp(Number(p.adsMultiplier) || DEFAULT_PROFILE.adsMultiplier, 0.2, 2),
     responseCurve: ['standard', 'linear', 'dynamic'].includes(p.responseCurve) ? p.responseCurve : 'standard',
+    verticalSensMultiplier: clamp(Number(p.verticalSensMultiplier) || 1, 0.2, 3),
+    fov: p.fov ? clamp(Math.round(Number(p.fov)), 50, 150) : 0,
+    fovRelativeAds: Boolean(p.fovRelativeAds),
+    aimAssist: AIM_ASSIST_SETTINGS[p.aimAssist] ? p.aimAssist : 'standard',
+    customSettings: normalizeCustomSettings(p.customSettings),
     strength: clamp(Math.round(Number(p.strength) ?? 100), 0, 200),
     deadzone: clamp(Math.round(Number(p.deadzone) ?? 5), 0, 30),
     adsOnly: p.adsOnly !== false,
@@ -71,6 +116,20 @@ export function normalizeProfile(raw = {}) {
 }
 
 const round = (n) => Math.round(n);
+
+const TARGET_LABEL = {
+  vertical: 'the vertical pull',
+  horizontal: 'the horizontal pull',
+  sticky: 'the sticky aim radius',
+  rapidFire: 'the fire rate'
+};
+
+/** Combined multiplier from the player's own settings for one target. */
+function customFactor(profile, target) {
+  return (profile.customSettings || [])
+    .filter((setting) => setting.affects === target)
+    .reduce((acc, setting) => acc * (1 + setting.adjust / 100), 1);
+}
 
 /** Shots per minute -> ms between rounds. */
 export function shotPeriodMs(rpm) {
@@ -105,6 +164,15 @@ export function computeTuning(weapon, rawProfile = {}) {
   // Curves that soften small stick inputs need a larger raw value to move the same amount.
   const curveFactor = game.responseCurves[profile.responseCurve] ?? 1;
 
+  // A separate vertical stick multiplier moves the vertical axis only.
+  const vertSensFactor = clamp(1 / profile.verticalSensMultiplier, 0.33, 3);
+
+  // FOV only changes the maths when the game ties aim speed to it ("relative"
+  // ADS sensitivity). On a fixed-sensitivity setup a wider FOV does not make the
+  // gun any easier to hold, however much it looks that way.
+  const fov = profile.fov || game.referenceFov;
+  const fovFactor = profile.fovRelativeAds ? clamp(game.referenceFov / fov, 0.5, 2) : 1;
+
   const attachV = weapon.attachments.reduce((acc, a) => acc * (1 + a.recoilVertical), 1);
   const attachH = weapon.attachments.reduce((acc, a) => acc * (1 + a.recoilHorizontal), 1);
 
@@ -115,8 +183,12 @@ export function computeTuning(weapon, rawProfile = {}) {
   // never these, so the UI can always show "auto (32)" next to a hand-set field.
   const auto = {};
 
+  const customV = customFactor(profile, 'vertical');
+  const customH = customFactor(profile, 'horizontal');
+
   let peakV = clamp(
-    round(base * game.recoilGain * rpmFactor * sensFactor * adsFactor * curveFactor * attachV * trim),
+    round(base * game.recoilGain * rpmFactor * sensFactor * adsFactor * curveFactor *
+          vertSensFactor * fovFactor * attachV * trim * customV),
     0,
     100
   );
@@ -125,8 +197,18 @@ export function computeTuning(weapon, rawProfile = {}) {
     `Vertical ${peakV}/100 = recoil ${base} x gain ${game.recoilGain} x rpm ${rpmFactor.toFixed(2)} ` +
     `x sens ${sensFactor.toFixed(2)} x ads ${adsFactor.toFixed(2)} x curve ${curveFactor.toFixed(2)}` +
     (attachV !== 1 ? ` x attachments ${attachV.toFixed(2)}` : '') +
-    (trim !== 1 ? ` x trim ${trim.toFixed(2)}` : '')
+    (vertSensFactor !== 1 ? ` x vertical sens ${vertSensFactor.toFixed(2)}` : '') +
+    (fovFactor !== 1 ? ` x fov ${fovFactor.toFixed(2)}` : '') +
+    (attachV !== 1 ? '' : '') +
+    (trim !== 1 ? ` x trim ${trim.toFixed(2)}` : '') +
+    (customV !== 1 ? ` x your settings ${customV.toFixed(2)}` : '')
   );
+
+  if (profile.fov && !profile.fovRelativeAds) {
+    diagnostics.push(`FOV ${profile.fov} noted but not applied - your game's aim speed is not tied to FOV, so the pull is unchanged.`);
+  } else if (fovFactor !== 1) {
+    diagnostics.push(`FOV ${fov} vs the ${game.referenceFov} these stats assume, with FOV-relative aim: pull scaled by ${fovFactor.toFixed(2)}.`);
+  }
 
   auto.antiRecoilVertical = peakV;
   if (ov.antiRecoilVertical !== undefined) {
@@ -141,7 +223,8 @@ export function computeTuning(weapon, rawProfile = {}) {
   // push against the drift: a weapon that pulls right needs a stick push left
   let peakH =
     clamp(
-      round(weapon.recoil.horizontal * game.recoilGain * rpmFactor * sensFactor * adsFactor * attachH * trim * Math.abs(drift)),
+      round(weapon.recoil.horizontal * game.recoilGain * rpmFactor * sensFactor * adsFactor * fovFactor *
+            attachH * trim * customH * Math.abs(drift)),
       0,
       60
     ) * Math.sign(drift) * -1 || 0; // `|| 0` collapses -0, which would serialise oddly
@@ -200,7 +283,11 @@ export function computeTuning(weapon, rawProfile = {}) {
   const wantsRapid =
     rapidMode === 'on' ||
     (rapidMode === 'auto' && weapon.fireMode === 'semi' && category.rapidFireDefault);
-  const rapidTargetRpm = clamp(Math.min(weapon.rpm, game.semiFireCapRpm), 60, game.semiFireCapRpm);
+  const rapidTargetRpm = clamp(
+    Math.min(weapon.rpm, game.semiFireCapRpm) * customFactor(profile, 'rapidFire'),
+    60,
+    game.semiFireCapRpm
+  );
   const rapidPeriod = shotPeriodMs(rapidTargetRpm);
   const holdMs = round(clamp(rapidPeriod * 0.45, 16, 60));
   const restMs = round(Math.max(rapidPeriod - holdMs, 16));
@@ -226,14 +313,19 @@ export function computeTuning(weapon, rawProfile = {}) {
   if (burst.enabled) diagnostics.push(`Burst weapon: correction restarts every ${burst.count} rounds with a ${burst.gapMs}ms gap.`);
 
   /* ---- sticky aim ----------------------------------------------------- */
-  const autoSticky = profile.stickyAim && game.aimAssist.type !== 'none' && category.stickyScale > 0;
+  const aimAssistSetting = AIM_ASSIST_SETTINGS[profile.aimAssist] || AIM_ASSIST_SETTINGS.standard;
+  const autoSticky =
+    profile.stickyAim && game.aimAssist.type !== 'none' && category.stickyScale > 0 && aimAssistSetting.sticky > 0;
+  if (profile.stickyAim && profile.aimAssist === 'off' && game.aimAssist.type !== 'none') {
+    diagnostics.push('Aim assist is off in your settings, so sticky aim is skipped - there is no assist to keep awake.');
+  }
   let stickyEnabled = autoSticky;
   if (ov.sticky) {
     stickyEnabled = ov.sticky === 'on';
     overridden.push('sticky');
   }
 
-  const stickyTrim = profile.stickyStrength / 100;
+  const stickyTrim = (profile.stickyStrength / 100) * aimAssistSetting.sticky * customFactor(profile, 'sticky');
   let stickyRadius = stickyEnabled
     ? clamp(round((game.aimAssist.radius || 5) * category.stickyScale * stickyTrim || 0), 0, 20)
     : 0;
@@ -291,6 +383,25 @@ export function computeTuning(weapon, rawProfile = {}) {
   }
   if (profile.releaseScale !== 100 || ov.releaseThreshold !== undefined) {
     diagnostics.push(`Your own stick input cancels the pull past ${releaseThreshold} units.`);
+  }
+
+  for (const setting of profile.customSettings) {
+    if (setting.affects === 'none') {
+      diagnostics.push(`Your setting "${setting.name}${setting.value ? `: ${setting.value}` : ''}" is recorded in the script header only.`);
+    } else {
+      diagnostics.push(
+        `Your setting "${setting.name}${setting.value ? `: ${setting.value}` : ''}" ` +
+        `${setting.adjust >= 0 ? 'raises' : 'lowers'} ${TARGET_LABEL[setting.affects]} by ${Math.abs(setting.adjust)}%.`
+      );
+    }
+  }
+
+  // A pull smaller than the in-game deadzone never reaches the game at all.
+  if (peakV > 0 && peakV <= profile.deadzone) {
+    diagnostics.push(
+      `WARNING: your in-game deadzone is ${profile.deadzone} and the pull is only ${peakV}, so the game will ` +
+      'ignore it. Turn on anti-deadzone, raise the strength trim, or lower the deadzone.'
+    );
   }
 
   return {

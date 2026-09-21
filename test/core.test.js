@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeWeapon, importFromCsv, importFromJson, importFromTextHeuristic, parseCsv } from '../core/weapons.js';
-import { computeTuning, normalizeProfile, PHASE_COUNT } from '../core/tuning.js';
+import { computeTuning, normalizeProfile, normalizeCustomSettings, PHASE_COUNT } from '../core/tuning.js';
 import { buildGpcScript, scriptFileName, MAX_SLOTS } from '../core/gpc.js';
 import { catalogFor } from '../core/catalog.js';
 import { getGame } from '../core/games.js';
@@ -366,4 +366,118 @@ test('junk override values are clamped or dropped, never passed through', () => 
   assert.equal(w.overrides.kickMs, undefined);
   assert.equal(w.overrides.nonsense, undefined);
   assert.ok(computeTuning(w, {}).antiRecoil.vertical <= 100);
+});
+
+/* ---------------- in-game settings ---------------- */
+
+test('FOV only changes the maths when the game ties aim speed to it', () => {
+  const w = preset('cod-mw3');
+  const base = computeTuning(w, {}).antiRecoil.vertical;
+  const noted = computeTuning(w, { fov: 120 });
+  const applied = computeTuning(w, { fov: 120, fovRelativeAds: true });
+
+  assert.equal(noted.antiRecoil.vertical, base, 'a wider FOV alone does not tame recoil');
+  assert.match(noted.diagnostics.join(' '), /noted but not applied/);
+  assert.ok(applied.antiRecoil.vertical < base, 'FOV-relative aim turns faster, so less stick is needed');
+  assert.ok(computeTuning(w, { fov: 60, fovRelativeAds: true }).antiRecoil.vertical > base);
+  // an unset FOV means "whatever the game defaults to" and must be a no-op
+  assert.equal(computeTuning(w, { fov: 0, fovRelativeAds: true }).antiRecoil.vertical, base);
+});
+
+test('a separate vertical stick multiplier moves the vertical axis only', () => {
+  const w = normalizeWeapon({ name: 'v', vertical: 50, horizontal: 40, drift: 'right' }, { game: 'cod-mw3' });
+  const base = computeTuning(w, {});
+  const slower = computeTuning(w, { verticalSensMultiplier: 0.6 });
+  assert.ok(slower.antiRecoil.vertical > base.antiRecoil.vertical, 'a slower vertical axis needs more push');
+  assert.equal(slower.antiRecoil.horizontal, base.antiRecoil.horizontal, 'horizontal is untouched');
+  assert.ok(computeTuning(w, { verticalSensMultiplier: 2 }).antiRecoil.vertical < base.antiRecoil.vertical);
+});
+
+test('the in-game aim assist setting drives sticky aim', () => {
+  const w = preset('cod-bo6');
+  const standard = computeTuning(w, { aimAssist: 'standard' }).sticky;
+  const strong = computeTuning(w, { aimAssist: 'strong' }).sticky;
+  const off = computeTuning(w, { aimAssist: 'off' });
+
+  assert.ok(strong.radius < standard.radius, 'stronger in-game assist needs less help');
+  assert.equal(off.sticky.enabled, false);
+  assert.match(off.diagnostics.join(' '), /no assist to keep awake/);
+});
+
+test('your own settings scale the target you point them at', () => {
+  const w = normalizeWeapon({ name: 'c', vertical: 60, horizontal: 40, drift: 'right' }, { game: 'cod-mw3' });
+  const base = computeTuning(w, {});
+
+  const harder = computeTuning(w, { customSettings: [{ name: 'Optic zoom', value: '4x', affects: 'vertical', adjust: 25 }] });
+  assert.ok(harder.antiRecoil.vertical > base.antiRecoil.vertical);
+  assert.equal(harder.antiRecoil.horizontal, base.antiRecoil.horizontal, 'only the named target moves');
+  assert.match(harder.diagnostics.join(' '), /"Optic zoom: 4x" raises the vertical pull by 25%/);
+
+  const noted = computeTuning(w, { customSettings: [{ name: 'Vibration', value: 'Off', affects: 'none', adjust: 50 }] });
+  assert.equal(noted.antiRecoil.vertical, base.antiRecoil.vertical, '"just note it" changes nothing');
+  assert.match(noted.diagnostics.join(' '), /recorded in the script header only/);
+
+  const sticky = computeTuning(preset('cod-bo6'), { customSettings: [{ name: 'AA', affects: 'sticky', adjust: -50 }] });
+  assert.ok(sticky.sticky.radius < computeTuning(preset('cod-bo6'), {}).sticky.radius);
+});
+
+test('several of your settings compound', () => {
+  const w = normalizeWeapon({ name: 'c', vertical: 60 }, { game: 'cod-mw3' });
+  const one = computeTuning(w, { customSettings: [{ name: 'a', affects: 'vertical', adjust: 20 }] }).antiRecoil.vertical;
+  const two = computeTuning(w, {
+    customSettings: [{ name: 'a', affects: 'vertical', adjust: 20 }, { name: 'b', affects: 'vertical', adjust: 20 }]
+  }).antiRecoil.vertical;
+  assert.ok(two > one, `${two} should exceed ${one}`);
+  assert.ok(computeTuning(w, { customSettings: [{ name: 'a', affects: 'vertical', adjust: -75 }] }).antiRecoil.vertical <
+            computeTuning(w, {}).antiRecoil.vertical);
+});
+
+test('custom settings are validated, not trusted', () => {
+  const rows = normalizeCustomSettings([
+    { name: '  Padded  ', value: ' 12 ', affects: 'vertical', adjust: '15' },
+    { name: '', value: 'no name' },                       // dropped
+    { name: 'Junk target', affects: 'wat', adjust: 9999 }, // coerced
+    null,
+    ...Array.from({ length: 30 }, (_, i) => ({ name: `bulk${i}` }))
+  ]);
+  assert.equal(rows[0].name, 'Padded');
+  assert.equal(rows[0].adjust, 15);
+  assert.equal(rows[1].name, 'Junk target');
+  assert.equal(rows[1].affects, 'none');
+  assert.equal(rows[1].adjust, 100, 'clamped to the maximum');
+  assert.ok(rows.length <= 24, 'the list is capped');
+  assert.ok(rows.every((r) => r.id && typeof r.name === 'string'));
+});
+
+test('a pull smaller than the in-game deadzone is called out', () => {
+  const w = preset('cod-mw3');
+  const swallowed = computeTuning(w, { strength: 20, deadzone: 12 });
+  assert.ok(swallowed.antiRecoil.vertical <= 12);
+  assert.match(swallowed.diagnostics.join(' '), /WARNING: your in-game deadzone is 12/);
+  assert.ok(!computeTuning(w, { deadzone: 2 }).diagnostics.join(' ').includes('WARNING'));
+});
+
+test('the script header records the settings it was tuned for', () => {
+  const w = preset('cod-mw3');
+  const tuning = computeTuning(w, {
+    fov: 110, fovRelativeAds: true, verticalSensMultiplier: 0.8, aimAssist: 'strong',
+    customSettings: [
+      { name: 'Weapon mount', value: 'On', affects: 'vertical', adjust: -15 },
+      { name: 'Vibration', value: 'Off', affects: 'none' }
+    ]
+  });
+  const header = buildGpcScript([{ weapon: w, tuning }]).split('#pragma')[0];
+  assert.match(header, /FOV 110 \(relative ADS\), vertical sens x0\.8, aim assist: strong/);
+  assert.match(header, /YOUR OWN GAME SETTINGS/);
+  assert.match(header, /Weapon mount\s+On\s+-15% vertical/);
+  assert.match(header, /Vibration\s+Off\s+noted only/);
+  assert.match(header, /re-generate from the app if you change any of these/);
+});
+
+test('a setting name cannot break out of the header comment', () => {
+  const w = preset('apex');
+  const tuning = computeTuning(w, { customSettings: [{ name: 'evil */ set_val(1,100); /*', value: '*/', affects: 'none' }] });
+  const gpc = buildGpcScript([{ weapon: w, tuning }]);
+  const header = gpc.slice(0, gpc.indexOf('#pragma'));
+  assert.equal(header.match(/\*\//g).length, 1);
 });

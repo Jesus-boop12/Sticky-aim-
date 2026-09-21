@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { listGames, CATEGORIES } from '../core/games.js';
 import { fullCatalog } from '../core/catalog.js';
 import { importFromCsv, importFromJson, normalizeWeapon, OVERRIDE_SPEC } from '../core/weapons.js';
-import { computeTuning, normalizeProfile, DEFAULT_PROFILE, RAMP_SPEEDS, STICKY_SHAPES, STICKY_WHEN } from '../core/tuning.js';
+import { computeTuning, normalizeProfile, DEFAULT_PROFILE, RAMP_SPEEDS, STICKY_SHAPES, STICKY_WHEN,
+         AIM_ASSIST_SETTINGS, CUSTOM_TARGETS } from '../core/tuning.js';
 import { buildGpcScript, scriptFileName, listLayouts, MAX_SLOTS } from '../core/gpc.js';
 import { aiEnabled, extractWeaponsFromText, extractWeaponsFromImage, coach, MODEL } from './ai.js';
 
@@ -77,6 +78,8 @@ const ROUTES = {
       rampSpeeds: Object.keys(RAMP_SPEEDS),
       stickyShapes: STICKY_SHAPES,
       stickyWhen: STICKY_WHEN,
+      aimAssist: Object.entries(AIM_ASSIST_SETTINGS).map(([id, a]) => ({ id, label: a.label })),
+      customTargets: CUSTOM_TARGETS,
       overrides: OVERRIDE_SPEC
     },
     maxSlots: MAX_SLOTS,

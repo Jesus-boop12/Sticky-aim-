@@ -7,6 +7,7 @@
  * user to trim from there (see README - "Calibrating").
  *
  * Field reference:
+ *   referenceFov       field of view the recoil stats are quoted at
  *   referenceSens      sensitivity the recoil stats in the catalog are quoted at
  *   sensExponent       how strongly stick compensation scales with sensitivity
  *   referenceAds       ADS sensitivity multiplier the stats are quoted at
@@ -23,6 +24,7 @@ export const GAMES = [
     id: 'cod-bo6',
     name: 'Call of Duty: Black Ops 6',
     family: 'cod',
+    referenceFov: 80,
     referenceSens: 6,
     sensExponent: 1.0,
     referenceAds: 0.9,
@@ -37,6 +39,7 @@ export const GAMES = [
     id: 'cod-mw3',
     name: 'Call of Duty: Modern Warfare III',
     family: 'cod',
+    referenceFov: 80,
     referenceSens: 6,
     sensExponent: 1.0,
     referenceAds: 0.85,
@@ -51,6 +54,7 @@ export const GAMES = [
     id: 'warzone',
     name: 'Call of Duty: Warzone',
     family: 'cod',
+    referenceFov: 80,
     referenceSens: 6,
     sensExponent: 1.0,
     referenceAds: 0.85,
@@ -65,6 +69,7 @@ export const GAMES = [
     id: 'apex',
     name: 'Apex Legends',
     family: 'apex',
+    referenceFov: 90,
     referenceSens: 4,
     sensExponent: 0.9,
     referenceAds: 1.0,
@@ -79,6 +84,7 @@ export const GAMES = [
     id: 'fortnite',
     name: 'Fortnite',
     family: 'fortnite',
+    referenceFov: 80,
     referenceSens: 6,
     sensExponent: 0.85,
     referenceAds: 0.6,
@@ -93,6 +99,7 @@ export const GAMES = [
     id: 'bf2042',
     name: 'Battlefield 2042',
     family: 'battlefield',
+    referenceFov: 74,
     referenceSens: 5,
     sensExponent: 1.0,
     referenceAds: 0.8,
@@ -107,6 +114,7 @@ export const GAMES = [
     id: 'r6siege',
     name: 'Rainbow Six Siege',
     family: 'siege',
+    referenceFov: 84,
     referenceSens: 12,
     sensExponent: 1.1,
     referenceAds: 0.5,
@@ -121,6 +129,7 @@ export const GAMES = [
     id: 'destiny2',
     name: 'Destiny 2',
     family: 'destiny',
+    referenceFov: 95,
     referenceSens: 6,
     sensExponent: 0.95,
     referenceAds: 1.0,
@@ -135,6 +144,7 @@ export const GAMES = [
     id: 'pubg',
     name: 'PUBG: Battlegrounds',
     family: 'pubg',
+    referenceFov: 90,
     referenceSens: 50,
     sensExponent: 1.0,
     referenceAds: 0.8,
@@ -149,6 +159,7 @@ export const GAMES = [
     id: 'halo-infinite',
     name: 'Halo Infinite',
     family: 'halo',
+    referenceFov: 78,
     referenceSens: 5,
     sensExponent: 0.9,
     referenceAds: 0.8,
@@ -163,6 +174,7 @@ export const GAMES = [
     id: 'generic',
     name: 'Other / custom game',
     family: 'generic',
+    referenceFov: 85,
     referenceSens: 6,
     sensExponent: 1.0,
     referenceAds: 0.8,

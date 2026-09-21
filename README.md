@@ -35,10 +35,40 @@ Recoil values are normalised onto 0–100 whatever scale they arrive on (0–1
 floats, 0–10 ratings, 0–1000 indexes), and anything the importer had to guess
 is listed as a warning on the weapon.
 
-**2 · Tune** — enter your in-game settings (sensitivity, ADS multiplier,
-response curve, deadzone, controller), then shape the mods themselves. Every
+**2 · Tune** — enter your in-game settings, then shape the mods themselves. Every
 number in the script is recomputed live, with a chart of the correction curve,
 the phase table and a plain-English derivation for each value.
+
+*Your settings* — the ones out of the game's options menu that change the maths:
+controller, look sensitivity, ADS sensitivity multiplier, response curve, right
+stick deadzone, a separate vertical stick multiplier, field of view, and what
+your in-game aim assist is set to.
+
+FOV is only applied when you tick **"my game ties aim speed to FOV"** (CoD's
+relative ADS sensitivity and its equivalents). On a fixed-sensitivity setup a
+wider FOV does not make a gun easier to hold, however much it looks that way, so
+the value is recorded but the numbers stay put. Aim assist set to *off* disables
+sticky aim outright — there is no assist left to keep awake — and *strong* or
+*precision* shrinks it, since the game is already doing the work.
+
+If the calculated pull comes out smaller than your deadzone, the tuner says so:
+the game would swallow it entirely.
+
+*Your own in-game settings* — for anything the tuner does not model. Give it a
+name and a value, then choose what it should do:
+
+| Field | Meaning |
+|---|---|
+| Name / value | e.g. `Weapon Mount Activation` / `On` — always recorded in the script header |
+| Changes | vertical pull, horizontal pull, sticky aim radius, fire rate, or *just note it* |
+| % | how much, from −75% to +100%; several settings compound |
+
+"Just note it" is the default, so a setting you want documented but not acted on
+costs nothing. A button fills in the common ones for the selected game as a
+starting point.
+
+*Saved setups* — name and store everything above in the browser, one per game or
+per playstyle, and load it back later.
 
 *Recoil control*
 
@@ -86,8 +116,11 @@ stick value = recoil
             × sensitivity factor    (reference sens / your sens) ^ game exponent
             × ADS factor            reference ADS multiplier / yours
             × response curve factor curves that soften small inputs need more raw value
+            × vertical stick factor  1 / your vertical multiplier
+            × FOV factor            reference FOV / yours, only with FOV-relative aim
             × attachment modifiers
             × your strength trim
+            × your own settings     everything you pointed at the vertical pull
 ```
 
 The correction is not flat. Each slot carries a **4-phase timeline**:
@@ -162,7 +195,7 @@ core/       pure logic, shared by the server and the tests
   games.js      per-game calibration profiles
   catalog.js    bundled starter weapon stats
   weapons.js    the weapon model + JSON/CSV/text importers
-  tuning.js     stats -> script parameters (the multiplier chain and phases)
+  tuning.js     stats + your settings -> script parameters (chain and phases)
   gpc.js        the GPC emitter
 server/
   index.js      dependency-free HTTP server + JSON API
@@ -175,8 +208,8 @@ All maths live in `core/` and run server-side, so the page, the API and the
 tests can never disagree about what a weapon tunes to.
 
 ```bash
-npm test      # 47 tests: importers, tuning bounds, options, overrides,
-              # GPC structure, API contract
+npm test      # 58 tests: importers, tuning bounds, in-game settings, options,
+              # overrides, GPC structure, API contract
 ```
 
 ### API

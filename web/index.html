@@ -141,6 +141,32 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
           </select>
         </label>
         <label class="field">Right stick deadzone (%) <input id="p-deadzone" type="number" min="0" max="30"></label>
+        <label class="field">Vertical stick multiplier <input id="p-verticalSensMultiplier" type="number" step="0.05" min="0.2" max="3"></label>
+        <label class="field">Field of view (0 = game default) <input id="p-fov" type="number" step="1" min="0" max="150"></label>
+        <label class="field">In-game aim assist <select id="p-aimAssist"></select></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="toggle"><input type="checkbox" id="p-fovRelativeAds"> My game ties aim speed to FOV (relative ADS sensitivity)</label>
+      </div>
+
+      <h3 style="margin-top:20px">Your own in-game settings</h3>
+      <p class="hint">Anything else from your options menu that changes how the gun behaves. Give it a name and a
+        value, then say what it should do to the script — or leave it on "just note it" to record it in the script
+        header without changing a number.</p>
+      <div id="custom-settings"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" id="btn-add-setting">+ Add a setting</button>
+        <button class="ghost" id="btn-suggest-settings">Add common ones for this game</button>
+      </div>
+
+      <h3 style="margin-top:20px">Saved setups</h3>
+      <p class="hint">Keep a named copy of everything above — one per game, or one per playstyle. Saved in this browser.</p>
+      <div class="row" style="margin-top:10px">
+        <input id="setup-name" placeholder="e.g. Warzone - controller" style="min-width:210px">
+        <button id="btn-save-setup">Save current settings</button>
+        <select id="setup-list" style="min-width:190px"></select>
+        <button id="btn-load-setup">Load</button>
+        <button class="ghost danger" id="btn-delete-setup">Delete</button>
       </div>
 
       <h3 style="margin-top:20px">Recoil control</h3>

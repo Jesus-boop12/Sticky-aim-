@@ -17,6 +17,8 @@ const state = {
   scriptOptions: { title: '', author: '', modButton: 'view', startSlot: 0 }
 };
 
+const SETUP_STORE = 'stickyaim.setups.v1';
+
 /* ------------------------------------------------------------------ */
 /* plumbing                                                            */
 /* ------------------------------------------------------------------ */
@@ -70,6 +72,36 @@ const SHAPE_LABELS = {
   diagonal: 'Diagonal — corners, widest sweep'
 };
 
+const TARGET_LABELS = {
+  none: 'Just note it',
+  vertical: 'Vertical pull',
+  horizontal: 'Horizontal pull',
+  sticky: 'Sticky aim radius',
+  rapidFire: 'Fire rate'
+};
+
+/* Settings people actually have to think about, per game family. Starting points
+   for the "add common ones" button - all of them still need a value and a call
+   on what they should do. */
+const SUGGESTED_SETTINGS = {
+  cod: [
+    { name: 'Aim Response Curve Slope', value: '', affects: 'none' },
+    { name: 'ADS Sens Multiplier (low zoom)', value: '', affects: 'none' },
+    { name: 'Target Aim Assist', value: '', affects: 'sticky', adjust: -10 },
+    { name: 'Weapon Mount Activation', value: '', affects: 'none' }
+  ],
+  apex: [
+    { name: 'Per-optic ADS sensitivity', value: '', affects: 'none' },
+    { name: 'Deadzone setting', value: '', affects: 'none' },
+    { name: 'Response curve', value: '', affects: 'none' }
+  ],
+  generic: [
+    { name: 'Aim acceleration', value: '', affects: 'vertical', adjust: 10 },
+    { name: 'Scope / optic zoom', value: '', affects: 'vertical', adjust: 15 },
+    { name: 'Controller vibration', value: '', affects: 'none' }
+  ]
+};
+
 const WHEN_LABELS = {
   ads: 'While aiming (ADS)',
   ads_fire: 'While aiming and firing',
@@ -96,6 +128,8 @@ async function boot() {
     .map((id) => `<option value="${id}">${escapeHtml(SHAPE_LABELS[id] || id)}</option>`).join('');
   $('#p-stickyWhen').innerHTML = state.meta.options.stickyWhen
     .map((id) => `<option value="${id}">${escapeHtml(WHEN_LABELS[id] || id)}</option>`).join('');
+  $('#p-aimAssist').innerHTML = state.meta.options.aimAssist
+    .map((a) => `<option value="${a.id}">${escapeHtml(a.label)}</option>`).join('');
 
   const badge = $('#ai-badge');
   badge.textContent = state.meta.ai.enabled ? `AI: ${state.meta.ai.model}` : 'AI: off (no API key)';
@@ -106,6 +140,8 @@ async function boot() {
   }
 
   syncProfileInputs();
+  renderCustomSettings();
+  renderSetupList();
   renderCatalog();
   renderSlots();
   renderModButtons();
@@ -115,7 +151,7 @@ async function boot() {
 function syncProfileInputs() {
   for (const [key, value] of Object.entries(state.profile)) {
     const el = $(`#p-${key}`);
-    if (!el) continue;
+    if (!el || Array.isArray(value)) continue;
     if (el.type === 'checkbox') el.checked = Boolean(value);
     else el.value = value;
   }
@@ -485,6 +521,55 @@ function wire() {
     });
   });
 
+  // your own settings
+  $('#btn-add-setting').addEventListener('click', () => addCustomSetting());
+
+  $('#btn-suggest-settings').addEventListener('click', () => {
+    const family = (state.meta.games.find((g) => g.id === state.game)?.id || '').split('-')[0];
+    const list = SUGGESTED_SETTINGS[family] || SUGGESTED_SETTINGS[state.game] || SUGGESTED_SETTINGS.generic;
+    const existing = new Set((state.profile.customSettings || []).map((r) => r.name.toLowerCase()));
+    const added = list.filter((row) => !existing.has(row.name.toLowerCase()));
+    added.forEach((row) => addCustomSetting(row));
+    toast(added.length ? `Added ${added.length} - fill in your values.` : 'Those are already in the list.');
+  });
+
+  // saved setups
+  $('#btn-save-setup').addEventListener('click', () => {
+    const name = ($('#setup-name').value || '').trim() || `${state.game} setup`;
+    const setups = readSetups();
+    setups[name] = { game: state.game, profile: state.profile, savedAt: new Date().toISOString() };
+    if (!writeSetups(setups)) return;
+    renderSetupList(name);
+    toast(`Saved "${name}".`);
+  });
+
+  $('#btn-load-setup').addEventListener('click', () => {
+    const name = $('#setup-list').value;
+    const setup = readSetups()[name];
+    if (!setup) return toast('Nothing to load.', true);
+    state.profile = { ...state.meta.defaultProfile, ...setup.profile };
+    if (setup.game && state.meta.games.some((g) => g.id === setup.game)) {
+      state.game = setup.game;
+      $('#game').value = setup.game;
+      renderCatalog();
+    }
+    syncProfileInputs();
+    renderCustomSettings();
+    renderModButtons();
+    refresh();
+    toast(`Loaded "${name}".`);
+  });
+
+  $('#btn-delete-setup').addEventListener('click', () => {
+    const name = $('#setup-list').value;
+    if (!name) return;
+    const setups = readSetups();
+    delete setups[name];
+    writeSetups(setups);
+    renderSetupList();
+    toast(`Deleted "${name}".`);
+  });
+
   // script options
   $('#s-title').addEventListener('input', (e) => { state.scriptOptions.title = e.target.value; refresh(); });
   $('#s-author').addEventListener('input', (e) => { state.scriptOptions.author = e.target.value; refresh(); });
@@ -580,6 +665,93 @@ function wire() {
   }));
 }
 
+
+
+/* ---------------- your own in-game settings ---------------- */
+
+function renderCustomSettings() {
+  const rows = state.profile.customSettings || [];
+  const box = $('#custom-settings');
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty">No settings of your own yet. Add the ones from your options menu that ' +
+      'change how a gun handles.</div>';
+    return;
+  }
+  box.innerHTML = rows.map((row, i) => `
+    <div class="setting-row" data-row="${i}">
+      <input data-cs="name" value="${escapeHtml(row.name)}" placeholder="Setting name" aria-label="Setting name">
+      <input data-cs="value" value="${escapeHtml(row.value)}" placeholder="Value" aria-label="Value">
+      <select data-cs="affects" aria-label="What it changes">${state.meta.options.customTargets.map((t) =>
+        `<option value="${t}"${t === row.affects ? ' selected' : ''}>${escapeHtml(TARGET_LABELS[t] || t)}</option>`).join('')}</select>
+      <span class="adjust${row.affects === 'none' ? ' off' : ''}">
+        <input data-cs="adjust" type="number" step="5" min="-75" max="100" value="${row.adjust}"
+          ${row.affects === 'none' ? 'disabled' : ''} aria-label="Percent change">
+        <span class="hint">%</span>
+      </span>
+      <button class="drag danger" data-remove-cs="${i}" title="Remove">&times;</button>
+    </div>`).join('');
+
+  $$('#custom-settings [data-cs]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const i = Number(el.closest('[data-row]').dataset.row);
+      const key = el.dataset.cs;
+      state.profile.customSettings[i][key] = key === 'adjust' ? Number(el.value) : el.value;
+      if (key === 'affects') renderCustomSettings();   // enable/disable the % box
+      refresh();
+    });
+  });
+
+  $$('#custom-settings [data-remove-cs]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.profile.customSettings.splice(Number(btn.dataset.removeCs), 1);
+      renderCustomSettings();
+      refresh();
+    });
+  });
+}
+
+function addCustomSetting(row = {}) {
+  state.profile.customSettings = state.profile.customSettings || [];
+  if (state.profile.customSettings.length >= 24) return toast('24 settings is the limit.', true);
+  state.profile.customSettings.push({
+    id: `cs${Date.now()}${state.profile.customSettings.length}`,
+    name: row.name || '',
+    value: row.value || '',
+    affects: row.affects || 'none',
+    adjust: row.adjust ?? 0
+  });
+  renderCustomSettings();
+  refresh();
+}
+
+/* ---------------- saved setups ---------------- */
+
+function readSetups() {
+  try {
+    return JSON.parse(localStorage.getItem(SETUP_STORE) || '{}');
+  } catch {
+    return {};   // private mode, cleared storage, corrupt entry - all the same to us
+  }
+}
+
+function writeSetups(setups) {
+  try {
+    localStorage.setItem(SETUP_STORE, JSON.stringify(setups));
+    return true;
+  } catch {
+    toast('This browser will not let the page save settings.', true);
+    return false;
+  }
+}
+
+function renderSetupList(selected) {
+  const names = Object.keys(readSetups()).sort();
+  $('#setup-list').innerHTML = names.length
+    ? names.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')
+    : '<option value="">no saved setups</option>';
+  if (selected && names.includes(selected)) $('#setup-list').value = selected;
+  for (const id of ['#btn-load-setup', '#btn-delete-setup']) $(id).disabled = !names.length;
+}
 
 /** One override input: empty means "auto", and the placeholder shows what auto is. */
 function overrideNumber(key, label, tuning, weapon) {

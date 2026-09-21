@@ -158,3 +158,26 @@ pre.script {
 }
 #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.err { border-color: var(--bad); color: var(--bad); }
+
+/* ---------- your own in-game settings ---------- */
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 92px 30px;
+  gap: 8px; align-items: center; margin-bottom: 8px;
+}
+.setting-row .adjust { display: flex; align-items: center; gap: 4px; }
+.setting-row .adjust input { width: 100%; min-width: 0; }
+.setting-row .adjust.off { opacity: 0.35; }
+.setting-row input, .setting-row select { min-width: 0; }
+@media (max-width: 700px) {
+  .setting-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px;
+    grid-template-areas: "name value remove" "affects affects affects" "adjust adjust adjust";
+    padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
+  }
+  .setting-row [data-cs="name"] { grid-area: name; }
+  .setting-row [data-cs="value"] { grid-area: value; }
+  .setting-row [data-cs="affects"] { grid-area: affects; }
+  .setting-row .adjust { grid-area: adjust; }
+  .setting-row [data-remove-cs] { grid-area: remove; }
+}

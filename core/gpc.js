@@ -124,7 +124,23 @@ export function buildGpcScript(entries, options = {}) {
   head.push(` *  Controller  : ${layout.label}`);
   head.push(` *  Generated   : ${generated} by Sticky Aim Weapon Studio`);
   head.push(` *  Settings    : sens ${first.profile.sensitivity}, ADS x${first.profile.adsMultiplier}, ` +
-            `${first.profile.responseCurve} curve, trim ${first.profile.strength}%`);
+            `${first.profile.responseCurve} curve, deadzone ${first.profile.deadzone}, trim ${first.profile.strength}%`);
+  const extra = [];
+  if (first.profile.fov) extra.push(`FOV ${first.profile.fov}${first.profile.fovRelativeAds ? ' (relative ADS)' : ''}`);
+  if (first.profile.verticalSensMultiplier !== 1) extra.push(`vertical sens x${first.profile.verticalSensMultiplier}`);
+  if (first.profile.aimAssist !== 'standard') extra.push(`aim assist: ${first.profile.aimAssist}`);
+  if (extra.length) head.push(` *                ${sanitize(extra.join(', '), 90)}`);
+  if (first.profile.customSettings?.length) {
+    head.push(' *');
+    head.push(' *  YOUR OWN GAME SETTINGS');
+    first.profile.customSettings.forEach((setting) => {
+      const effect = setting.affects === 'none'
+        ? 'noted only'
+        : `${setting.adjust >= 0 ? '+' : ''}${setting.adjust}% ${setting.affects}`;
+      head.push(` *   ${pad(sanitize(setting.name, 26), 26)} ${pad(sanitize(setting.value, 18), 18)} ${effect}`);
+    });
+    head.push(' *   (re-generate from the app if you change any of these in game)');
+  }
   head.push(' *');
   head.push(' *  SLOTS');
   const anyOverride = slots.some(({ tuning }) => (tuning.overridden || []).length > 0);

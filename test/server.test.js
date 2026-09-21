@@ -138,3 +138,29 @@ test('meta publishes the option vocabularies the page builds its controls from',
     }
   });
 });
+
+test('your own settings survive the API round trip', async () => {
+  await withServer(async (base) => {
+    const { body } = await post(base, '/api/generate', {
+      weapons: [{ name: 'Tuned', category: 'ar', rpm: 700, vertical: 50 }],
+      profile: {
+        game: 'cod-mw3', fov: 110, fovRelativeAds: true, aimAssist: 'strong',
+        customSettings: [{ name: 'Weapon mount', value: 'On', affects: 'vertical', adjust: -15 }]
+      }
+    });
+    const { profile, diagnostics } = body.entries[0].tuning;
+    assert.equal(profile.fov, 110);
+    assert.equal(profile.customSettings.length, 1);
+    assert.match(diagnostics.join(' '), /"Weapon mount: On" lowers the vertical pull by 15%/);
+    assert.match(body.gpc, /YOUR OWN GAME SETTINGS/);
+  });
+});
+
+test('meta lists the aim assist options and custom targets', async () => {
+  await withServer(async (base) => {
+    const meta = await (await fetch(`${base}/api/meta`)).json();
+    assert.ok(meta.options.aimAssist.some((a) => a.id === 'off' && a.label));
+    assert.deepEqual(meta.options.customTargets, ['vertical', 'horizontal', 'sticky', 'rapidFire', 'none']);
+    assert.deepEqual(meta.defaultProfile.customSettings, []);
+  });
+});
