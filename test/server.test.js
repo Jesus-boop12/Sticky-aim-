@@ -106,3 +106,35 @@ test('coach falls back to offline notes without an API key', async (t) => {
     assert.match(body.text, /Test/);
   });
 });
+
+test('sticky and recoil options survive the API round trip', async () => {
+  await withServer(async (base) => {
+    const { body } = await post(base, '/api/generate', {
+      weapons: [{
+        name: 'Optioned', category: 'ar', rpm: 700, vertical: 45, horizontal: 20, drift: 'right',
+        overrides: { antiRecoilVertical: 23, stickyRadius: 9 }
+      }],
+      profile: { game: 'cod-bo6', stickyShape: 'diagonal', stickyWhen: 'always', rampSpeed: 'slow', horizontalEnabled: false }
+    });
+    const tuning = body.entries[0].tuning;
+    assert.equal(tuning.antiRecoil.vertical, 23, 'override applied');
+    assert.equal(tuning.antiRecoil.horizontal, 0, 'horizontal switched off');
+    assert.equal(tuning.sticky.radius, 9);
+    assert.equal(tuning.sticky.shape, 'diagonal');
+    assert.match(body.gpc, /sticky aim: diagonal shape, active at all times/);
+    assert.match(body.gpc, /V:23\*/);
+  });
+});
+
+test('meta publishes the option vocabularies the page builds its controls from', async () => {
+  await withServer(async (base) => {
+    const meta = await (await fetch(`${base}/api/meta`)).json();
+    assert.deepEqual(meta.options.stickyShapes, ['circle', 'horizontal', 'vertical', 'diagonal']);
+    assert.deepEqual(meta.options.stickyWhen, ['ads', 'ads_fire', 'always']);
+    assert.ok(meta.options.rampSpeeds.includes('instant'));
+    assert.ok(meta.options.overrides.antiRecoilVertical.max === 100);
+    for (const key of Object.keys(meta.options.overrides)) {
+      assert.ok(meta.defaultProfile !== undefined && meta.options.overrides[key].label, `${key} needs a label`);
+    }
+  });
+});

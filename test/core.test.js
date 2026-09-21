@@ -237,3 +237,133 @@ test('a loose alias never swallows a nested object', () => {
   assert.equal(w.recoil.vertical, 61);
   assert.equal(w.recoil.drift, 1);
 });
+
+/* ---------------- recoil & sticky aim options ---------------- */
+
+test('sticky aim strength and speed scale the micro-movement', () => {
+  const w = preset('cod-bo6');
+  const base = computeTuning(w, {}).sticky;
+  const strong = computeTuning(w, { stickyStrength: 200 }).sticky;
+  const fast = computeTuning(w, { stickySpeed: 200 }).sticky;
+  assert.ok(strong.radius > base.radius, `${strong.radius} should exceed ${base.radius}`);
+  assert.ok(fast.periodMs < base.periodMs, 'a faster setting means a shorter step');
+  assert.equal(computeTuning(w, { stickyStrength: 0 }).sticky.enabled, false, 'zero radius is just off');
+});
+
+test('sticky shape and trigger condition reach the script', () => {
+  const w = preset('cod-bo6');
+  for (const shape of ['circle', 'horizontal', 'vertical', 'diagonal']) {
+    const gpc = buildGpcScript([{ weapon: w, tuning: computeTuning(w, { stickyShape: shape }) }]);
+    const combo = gpc.slice(gpc.indexOf('combo STICKY_AIM'), gpc.indexOf('combo FEEDBACK'));
+    const steps = combo.match(/wait\(sticky_ms\)/g).length;
+    assert.equal(steps, shape === 'horizontal' || shape === 'vertical' ? 2 : 4, `${shape} step count`);
+    if (shape === 'horizontal') assert.ok(!combo.includes('STICK_RY'), 'horizontal must not touch the Y axis');
+    if (shape === 'vertical') assert.ok(!combo.includes('STICK_RX'), 'vertical must not touch the X axis');
+    assert.match(gpc, new RegExp(`sticky aim: ${shape} shape`));
+  }
+
+  const ads = buildGpcScript([{ weapon: w, tuning: computeTuning(w, { stickyWhen: 'ads' }) }]);
+  const adsFire = buildGpcScript([{ weapon: w, tuning: computeTuning(w, { stickyWhen: 'ads_fire' }) }]);
+  const always = buildGpcScript([{ weapon: w, tuning: computeTuning(w, { stickyWhen: 'always' }) }]);
+  assert.match(ads, /if\(mods_on && STICKY_ON\[slot\] && aiming\) \{/);
+  assert.match(adsFire, /if\(mods_on && STICKY_ON\[slot\] && aiming && firing\) \{/);
+  assert.match(always, /if\(mods_on && STICKY_ON\[slot\]\) \{/);
+});
+
+test('ramp speed and start-delay trim move the phase timeline', () => {
+  const w = preset('cod-mw3');
+  const normal = computeTuning(w, {}).antiRecoil;
+  const instant = computeTuning(w, { rampSpeed: 'instant' }).antiRecoil;
+  const slow = computeTuning(w, { rampSpeed: 'slow' }).antiRecoil;
+  assert.ok(instant.rampMs < normal.rampMs && normal.rampMs < slow.rampMs);
+  assert.ok(instant.phases[2].untilMs < slow.phases[2].untilMs, 'the ramp phases move with it');
+  // still a valid timeline at the extremes
+  for (const t of [instant, slow]) {
+    for (let i = 1; i < t.phases.length; i++) assert.ok(t.phases[i].untilMs > t.phases[i - 1].untilMs);
+  }
+
+  const delayed = computeTuning(w, { kickDelayTrim: 150 }).antiRecoil;
+  assert.equal(delayed.kickMs, normal.kickMs + 150);
+  assert.equal(delayed.phases[0].untilMs, delayed.kickMs);
+  assert.ok(computeTuning(w, { kickDelayTrim: -150 }).antiRecoil.kickMs < normal.kickMs);
+});
+
+test('horizontal correction can be switched off globally', () => {
+  const w = normalizeWeapon({ name: 'Drifter', vertical: 50, horizontal: 40, drift: 'right' }, { game: 'cod-mw3' });
+  assert.ok(computeTuning(w, {}).antiRecoil.horizontal !== 0);
+  const off = computeTuning(w, { horizontalEnabled: false });
+  assert.equal(off.antiRecoil.horizontal, 0);
+  assert.ok(off.antiRecoil.phases.every((p) => p.horizontal === 0));
+  assert.match(off.diagnostics.join(' '), /switched off in your settings/);
+});
+
+test('release threshold responds to its trim', () => {
+  const w = preset('cod-mw3');
+  const loose = computeTuning(w, { releaseScale: 50 }).antiRecoil.releaseThreshold;
+  const tight = computeTuning(w, { releaseScale: 200 }).antiRecoil.releaseThreshold;
+  assert.ok(loose < tight);
+});
+
+test('per-weapon overrides beat the calculated values and are reported', () => {
+  const base = preset('cod-bo6');
+  const w = normalizeWeapon({
+    ...base,
+    overrides: { antiRecoilVertical: 19, antiRecoilHorizontal: -6, kickMs: 30, releaseThreshold: 41, sticky: 'off' }
+  }, { game: 'cod-bo6' });
+  const t = computeTuning(w, {});
+
+  assert.equal(t.antiRecoil.vertical, 19);
+  assert.equal(t.antiRecoil.horizontal, -6);
+  assert.equal(t.antiRecoil.kickMs, 30);
+  assert.equal(t.antiRecoil.releaseThreshold, 41);
+  assert.equal(t.sticky.enabled, false);
+
+  // the phase table is rebuilt around the override, not left on the old peak
+  assert.equal(t.antiRecoil.phases.at(-1).vertical, 19);
+  assert.equal(t.antiRecoil.phases[0].untilMs, 30);
+
+  // and the auto values survive for the UI to show as "auto (n)"
+  assert.equal(t.auto.antiRecoilVertical, computeTuning(base, {}).antiRecoil.vertical);
+  assert.deepEqual(new Set(t.overridden),
+    new Set(['antiRecoilVertical', 'antiRecoilHorizontal', 'kickMs', 'sticky', 'releaseThreshold']));
+});
+
+test('a forced-on sticky override works on a weapon that would not get it', () => {
+  const sniper = catalogFor('cod-mw3').find((w) => w.category === 'sniper');
+  assert.equal(computeTuning(sniper, {}).sticky.enabled, false);
+  const forced = normalizeWeapon({ ...sniper, overrides: { sticky: 'on', stickyRadius: 4, stickyPeriodMs: 120 } }, { game: 'cod-mw3' });
+  const t = computeTuning(forced, {});
+  assert.equal(t.sticky.enabled, true);
+  assert.equal(t.sticky.radius, 4);
+  assert.equal(t.sticky.periodMs, 120);
+});
+
+test('a rapid-fire override is per weapon, not per profile', () => {
+  const dmr = normalizeWeapon({ name: 'DMR', category: 'marksman', fireMode: 'semi', rpm: 300, vertical: 30 }, { game: 'cod-mw3' });
+  assert.equal(computeTuning(dmr, { rapidFire: 'auto' }).rapidFire.enabled, true);
+  const off = normalizeWeapon({ ...dmr, overrides: { rapidFire: 'off' } }, { game: 'cod-mw3' });
+  assert.equal(computeTuning(off, { rapidFire: 'on' }).rapidFire.enabled, false, 'the weapon setting wins');
+});
+
+test('overrides are flagged in the script header', () => {
+  const w = normalizeWeapon({ ...preset('cod-bo6'), overrides: { antiRecoilVertical: 51 } }, { game: 'cod-bo6' });
+  const gpc = buildGpcScript([{ weapon: w, tuning: computeTuning(w, {}) }]);
+  const header = gpc.slice(0, gpc.indexOf('#pragma'));
+  assert.match(header, /V:51\*/);
+  assert.match(header, /\* = value you set by hand/);
+  assert.match(header, /RECOIL CONTROL/);
+  assert.match(header, /STICKY AIM/);
+});
+
+test('junk override values are clamped or dropped, never passed through', () => {
+  const w = normalizeWeapon({
+    name: 'x', vertical: 40,
+    overrides: { antiRecoilVertical: 5000, stickyRadius: -3, sticky: 'maybe', kickMs: 'soon', nonsense: 1 }
+  }, { game: 'apex' });
+  assert.equal(w.overrides.antiRecoilVertical, 100);
+  assert.equal(w.overrides.stickyRadius, 1);
+  assert.equal(w.overrides.sticky, undefined);
+  assert.equal(w.overrides.kickMs, undefined);
+  assert.equal(w.overrides.nonsense, undefined);
+  assert.ok(computeTuning(w, {}).antiRecoil.vertical <= 100);
+});

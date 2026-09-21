@@ -44,6 +44,44 @@ export function listLayouts() {
   }));
 }
 
+/**
+ * The micro-movement each sticky-aim shape traces. Every step is additive and
+ * clamped, so it rides on top of whatever the player and the anti-recoil are
+ * already doing to the stick.
+ */
+const STICKY_STEPS = {
+  circle:     [['RX', 1], ['RY', 1], ['RX', -1], ['RY', -1]],
+  horizontal: [['RX', 1], ['RX', -1]],
+  vertical:   [['RY', 1], ['RY', -1]],
+  diagonal:   [['RX', 1, 'RY', 1], ['RX', -1, 'RY', 1], ['RX', -1, 'RY', -1], ['RX', 1, 'RY', -1]]
+};
+
+const STICKY_WHEN_TEXT = {
+  ads: 'while aiming down sights',
+  ads_fire: 'while aiming AND firing',
+  always: 'at all times'
+};
+
+function stickyComboBody(shape) {
+  const steps = STICKY_STEPS[shape] || STICKY_STEPS.circle;
+  const lines = [];
+  for (const step of steps) {
+    for (let i = 0; i < step.length; i += 2) {
+      const axis = `STICK_${step[i]}`;
+      const sign = step[i + 1] > 0 ? '+' : '-';
+      lines.push(`    set_val(${axis}, lim(get_val(${axis}) ${sign} sticky_r));`);
+    }
+    lines.push('    wait(sticky_ms);');
+  }
+  return lines;
+}
+
+function stickyCondition(when) {
+  if (when === 'always') return 'mods_on && STICKY_ON[slot]';
+  if (when === 'ads_fire') return 'mods_on && STICKY_ON[slot] && aiming && firing';
+  return 'mods_on && STICKY_ON[slot] && aiming';
+}
+
 const pad = (s, n) => String(s).padEnd(n);
 const gpcBool = (v) => (v ? 'TRUE' : 'FALSE');
 
@@ -89,14 +127,34 @@ export function buildGpcScript(entries, options = {}) {
             `${first.profile.responseCurve} curve, trim ${first.profile.strength}%`);
   head.push(' *');
   head.push(' *  SLOTS');
+  const anyOverride = slots.some(({ tuning }) => (tuning.overridden || []).length > 0);
   slots.forEach(({ weapon, tuning }, i) => {
+    const set = new Set(tuning.overridden || []);
+    const mark = (key, value) => `${value}${set.has(key) ? '*' : ''}`;
     head.push(
       ` *   ${i} ${pad(sanitize(weapon.name, 22), 22)} ${pad(getCategory(weapon.category).label, 14)}` +
-      ` V:${pad(tuning.antiRecoil.vertical, 3)} H:${pad(tuning.antiRecoil.horizontal, 4)}` +
-      ` RF:${pad(tuning.rapidFire.enabled ? tuning.rapidFire.effectiveRpm + 'rpm' : 'off', 8)}` +
-      ` Sticky:${tuning.sticky.enabled ? tuning.sticky.radius : 'off'}`
+      ` V:${pad(mark('antiRecoilVertical', tuning.antiRecoil.vertical), 4)}` +
+      ` H:${pad(mark('antiRecoilHorizontal', tuning.antiRecoil.horizontal), 5)}` +
+      ` RF:${pad(mark('rapidFire', tuning.rapidFire.enabled ? tuning.rapidFire.effectiveRpm + 'rpm' : 'off'), 9)}` +
+      ` Sticky:${mark('sticky', tuning.sticky.enabled ? '+/-' + tuning.sticky.radius : 'off')}`
     );
   });
+  if (anyOverride) head.push(' *   (* = value you set by hand; the calculated one was ignored)');
+  head.push(' *');
+  head.push(' *  RECOIL CONTROL');
+  head.push(` *   Applied        : ${first.antiRecoil.adsOnly ? 'while aiming down sights' : 'whenever you fire'}`);
+  head.push(` *   Ramp speed     : ${first.profile.rampSpeed} (correction fades in over the PH_UNTIL phases)`);
+  head.push(` *   Horizontal     : ${first.profile.horizontalEnabled ? 'on, only for weapons with a consistent drift' : 'off (your setting)'}`);
+  head.push(` *   Release        : your own stick input past AR_RELEASE cancels the pull`);
+  head.push(' *');
+  head.push(' *  STICKY AIM');
+  if (anySticky) {
+    head.push(` *   Shape          : ${first.sticky.shape} micro-movement`);
+    head.push(` *   Active         : ${STICKY_WHEN_TEXT[first.sticky.when] || 'while aiming down sights'}`);
+    head.push(' *   Size / speed   : STICKY_R[] units per step, STICKY_MS[] ms per step');
+  } else {
+    head.push(' *   Off for every slot in this script.');
+  }
   head.push(' *');
   head.push(' *  CONTROLS');
   head.push(` *   Hold ${pad(modButton, 12)} + D-PAD RIGHT/LEFT : next / previous weapon slot`);
@@ -162,6 +220,9 @@ export function buildGpcScript(entries, options = {}) {
   body.push(`define ANTI_DEADZONE  = ${first.antiDeadzone.enabled ? first.antiDeadzone.value : 0};       // 0 = off`);
   body.push(`define ADS_SLOW       = ${first.adsSlow.enabled ? first.adsSlow.percent : 100};     // right stick % while aiming (100 = off)`);
   body.push(`define START_SLOT     = ${Math.min(Math.max(Number(options.startSlot) || 0, 0), slots.length - 1)};`);
+  if (anySticky) {
+    body.push(`/* sticky aim: ${first.sticky.shape} shape, active ${STICKY_WHEN_TEXT[first.sticky.when] || 'while aiming'} */`);
+  }
   body.push('');
   body.push('/* ---------------- weapon tables (one block of PHASES per slot) ---------------- */');
   body.push(table('int16', 'PH_UNTIL', phUntil, 'ms since trigger pull that each phase ends'));
@@ -173,7 +234,7 @@ export function buildGpcScript(entries, options = {}) {
   body.push(table('int16', 'RF_REST', slots.map((s) => s.tuning.rapidFire.restMs), 'ms the trigger is released'));
   body.push(table('int8 ', 'STICKY_ON', slots.map((s) => (s.tuning.sticky.enabled ? 1 : 0)), 'sticky aim per slot'));
   body.push(table('int8 ', 'STICKY_R', slots.map((s) => s.tuning.sticky.radius), 'micro-movement radius'));
-  body.push(table('int16', 'STICKY_MS', slots.map((s) => s.tuning.sticky.periodMs || 100), 'ms per quarter circle'));
+  body.push(table('int16', 'STICKY_MS', slots.map((s) => s.tuning.sticky.periodMs || 100), 'ms per step'));
   if (anyBurst) {
     body.push(table('int16', 'BURST_CYCLE', slots.map((s) => (s.tuning.burst.enabled
       ? Math.round(s.tuning.shotPeriodMs * s.tuning.burst.count + s.tuning.burst.gapMs)
@@ -292,7 +353,7 @@ export function buildGpcScript(entries, options = {}) {
   }
   if (anySticky) {
     body.push('    /* ---- sticky aim: keep the game\'s aim assist bubble awake ---- */');
-    body.push('    if(mods_on && STICKY_ON[slot] && aiming) {');
+    body.push(`    if(${stickyCondition(first.sticky.when)}) {`);
     body.push('        sticky_r = STICKY_R[slot];');
     body.push('        sticky_ms = STICKY_MS[slot];');
     body.push('        combo_run(STICKY_AIM);');
@@ -321,15 +382,9 @@ export function buildGpcScript(entries, options = {}) {
     body.push('');
   }
   if (anySticky) {
+    body.push(`/* ${first.sticky.shape} micro-movement - one full loop per ${STICKY_STEPS[first.sticky.shape]?.length || 4} steps */`);
     body.push('combo STICKY_AIM {');
-    body.push('    set_val(STICK_RX, lim(get_val(STICK_RX) + sticky_r));');
-    body.push('    wait(sticky_ms);');
-    body.push('    set_val(STICK_RY, lim(get_val(STICK_RY) + sticky_r));');
-    body.push('    wait(sticky_ms);');
-    body.push('    set_val(STICK_RX, lim(get_val(STICK_RX) - sticky_r));');
-    body.push('    wait(sticky_ms);');
-    body.push('    set_val(STICK_RY, lim(get_val(STICK_RY) - sticky_r));');
-    body.push('    wait(sticky_ms);');
+    stickyComboBody(first.sticky.shape).forEach((line) => body.push(line));
     body.push('}');
     body.push('');
   }

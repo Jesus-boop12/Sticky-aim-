@@ -54,6 +54,28 @@ async function withBusy(button, fn) {
   }
 }
 
+/** Live text for each range control, so the sliders read as values not numbers. */
+const RANGE_LABELS = {
+  strength: (v) => `${v}%`,
+  releaseScale: (v) => (v === 100 ? 'normal' : v > 100 ? `${v}% (harder to cancel)` : `${v}% (easier to cancel)`),
+  stickyStrength: (v) => (Number(v) === 0 ? 'off' : `${v}%`),
+  stickySpeed: (v) => `${v}%`,
+  adsSlowPercent: (v) => (v >= 100 ? 'off' : `${v}%`)
+};
+
+const SHAPE_LABELS = {
+  circle: 'Circle — even coverage',
+  horizontal: 'Horizontal — left/right only',
+  vertical: 'Vertical — up/down only',
+  diagonal: 'Diagonal — corners, widest sweep'
+};
+
+const WHEN_LABELS = {
+  ads: 'While aiming (ADS)',
+  ads_fire: 'While aiming and firing',
+  always: 'All the time'
+};
+
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -70,6 +92,10 @@ async function boot() {
 
   $('#m-category').innerHTML = state.meta.categories.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
   $('#p-controller').innerHTML = state.meta.layouts.map((l) => `<option value="${l.id}">${escapeHtml(l.label)}</option>`).join('');
+  $('#p-stickyShape').innerHTML = state.meta.options.stickyShapes
+    .map((id) => `<option value="${id}">${escapeHtml(SHAPE_LABELS[id] || id)}</option>`).join('');
+  $('#p-stickyWhen').innerHTML = state.meta.options.stickyWhen
+    .map((id) => `<option value="${id}">${escapeHtml(WHEN_LABELS[id] || id)}</option>`).join('');
 
   const badge = $('#ai-badge');
   badge.textContent = state.meta.ai.enabled ? `AI: ${state.meta.ai.model}` : 'AI: off (no API key)';
@@ -93,8 +119,10 @@ function syncProfileInputs() {
     if (el.type === 'checkbox') el.checked = Boolean(value);
     else el.value = value;
   }
-  $('#p-strength-val').textContent = `${state.profile.strength}%`;
-  $('#p-adsSlow-val').textContent = state.profile.adsSlowPercent >= 100 ? 'off' : `${state.profile.adsSlowPercent}%`;
+  for (const [key, format] of Object.entries(RANGE_LABELS)) {
+    const out = $(`#p-${key}-val`);
+    if (out) out.textContent = format(state.profile[key]);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,12 +252,34 @@ function renderTune() {
       <label class="field">RPM <input data-w="rpm" type="number" value="${weapon.rpm}" min="30" max="2000"></label>
       <label class="field">Vertical recoil <input data-w="vertical" type="number" value="${weapon.recoil.vertical}" min="0" max="100"></label>
       <label class="field">Horizontal recoil <input data-w="horizontal" type="number" value="${weapon.recoil.horizontal}" min="0" max="100"></label>
-      <label class="field">Drift <select data-w="drift">${[['none', 0], ['left', -1], ['right', 1]].map(([label, v]) =>
-        `<option value="${v}"${Number(weapon.recoil.drift) === v ? ' selected' : ''}>${label}</option>`).join('')}</select></label>
+      <label class="field">Drift (-1 left … +1 right)
+        <input data-w="drift" type="number" step="0.1" min="-1" max="1" value="${weapon.recoil.drift}">
+      </label>
       <label class="field">First-shot delay (ms) <input data-w="firstShotKickMs" type="number" value="${weapon.recoil.firstShotKickMs}" min="0" max="600"></label>
+    </div>
+
+    <h3 style="margin-top:18px">Overrides for this weapon</h3>
+    <p class="hint">Leave a box empty to keep the calculated value. Anything you set here wins for this slot only,
+      and is marked with a <b>*</b> in the script header.</p>
+    <div class="grid-2">
+      ${overrideNumber('antiRecoilVertical', 'Vertical push', tuning, weapon)}
+      ${overrideNumber('antiRecoilHorizontal', 'Horizontal push', tuning, weapon)}
+      ${overrideNumber('kickMs', 'Start delay (ms)', tuning, weapon)}
+      ${overrideNumber('releaseThreshold', 'Release threshold', tuning, weapon)}
+      ${overrideMode('sticky', 'Sticky aim', tuning, weapon)}
+      ${overrideNumber('stickyRadius', 'Sticky radius', tuning, weapon)}
+      ${overrideNumber('stickyPeriodMs', 'Sticky step (ms)', tuning, weapon)}
+      ${overrideMode('rapidFire', 'Rapid fire', tuning, weapon)}
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" id="btn-reset-overrides"${Object.keys(weapon.overrides || {}).length ? '' : ' disabled'}>
+        Reset this weapon to auto
+      </button>
+      <span class="hint">${(tuning.overridden || []).length} value(s) set by hand</span>
     </div>`;
 
   wireWeaponEditor();
+  wireOverrides();
   wireChart(ar.phases);
 }
 
@@ -428,8 +478,8 @@ function wire() {
     const key = el.id.slice(2);
     el.addEventListener('input', () => {
       state.profile[key] = el.type === 'checkbox' ? el.checked : (el.type === 'number' || el.type === 'range' ? Number(el.value) : el.value);
-      if (key === 'strength') $('#p-strength-val').textContent = `${el.value}%`;
-      if (key === 'adsSlowPercent') $('#p-adsSlow-val').textContent = Number(el.value) >= 100 ? 'off' : `${el.value}%`;
+      const out = $(`#p-${key}-val`);
+      if (out && RANGE_LABELS[key]) out.textContent = RANGE_LABELS[key](Number(el.value));
       if (key === 'controller') renderModButtons();
       refresh();
     });
@@ -528,6 +578,53 @@ function wire() {
     $('#coach-mode').textContent = result.mode === 'ai' ? 'Reviewed by Claude.' : 'Offline notes.';
     $('#coach-out').innerHTML = miniMarkdown(result.text);
   }));
+}
+
+
+/** One override input: empty means "auto", and the placeholder shows what auto is. */
+function overrideNumber(key, label, tuning, weapon) {
+  const spec = state.meta.options.overrides[key];
+  const current = weapon.overrides?.[key];
+  const autoValue = tuning.auto?.[key];
+  return `<label class="field">${escapeHtml(label)}
+    <input data-ov="${key}" type="number" min="${spec.min}" max="${spec.max}"
+      value="${current ?? ''}" placeholder="auto${autoValue === undefined ? '' : ` (${autoValue})`}">
+  </label>`;
+}
+
+function overrideMode(key, label, tuning, weapon) {
+  const current = weapon.overrides?.[key] || 'auto';
+  const autoValue = tuning.auto?.[key];
+  const options = [
+    ['auto', `Auto${autoValue ? ` (${autoValue})` : ''}`],
+    ['on', 'Force on'],
+    ['off', 'Force off']
+  ];
+  return `<label class="field">${escapeHtml(label)}
+    <select data-ov="${key}">${options.map(([v, text]) =>
+      `<option value="${v}"${v === current ? ' selected' : ''}>${escapeHtml(text)}</option>`).join('')}</select>
+  </label>`;
+}
+
+function wireOverrides() {
+  $$('#tune-detail [data-ov]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const weapon = state.weapons[state.selected];
+      weapon.overrides = { ...(weapon.overrides || {}) };
+      const key = el.dataset.ov;
+      const raw = el.value;
+      if (raw === '' || raw === 'auto') delete weapon.overrides[key];
+      else weapon.overrides[key] = el.type === 'number' ? Number(raw) : raw;
+      refresh();
+    });
+  });
+
+  const reset = $('#btn-reset-overrides');
+  if (reset) reset.addEventListener('click', () => {
+    state.weapons[state.selected].overrides = {};
+    toast('Back to the calculated values.');
+    refresh();
+  });
 }
 
 function wireWeaponEditor() {

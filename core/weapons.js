@@ -125,6 +125,40 @@ function normalizePattern(raw) {
   return phases.length ? phases : null;
 }
 
+/**
+ * Per-weapon overrides.
+ *
+ * Anything set here replaces what the tuner calculated for that one weapon.
+ * A key that is absent, null or '' means "leave it on auto", which is what
+ * lets the UI offer an auto/manual switch per field without a second flag.
+ */
+export const OVERRIDE_SPEC = {
+  antiRecoilVertical: { type: 'int', min: 0, max: 100, label: 'Vertical push' },
+  antiRecoilHorizontal: { type: 'int', min: -60, max: 60, label: 'Horizontal push' },
+  kickMs: { type: 'int', min: 0, max: 800, label: 'Start delay (ms)' },
+  releaseThreshold: { type: 'int', min: 5, max: 100, label: 'Release threshold' },
+  sticky: { type: 'mode', values: ['auto', 'on', 'off'], label: 'Sticky aim' },
+  stickyRadius: { type: 'int', min: 1, max: 20, label: 'Sticky radius' },
+  stickyPeriodMs: { type: 'int', min: 20, max: 400, label: 'Sticky step (ms)' },
+  rapidFire: { type: 'mode', values: ['auto', 'on', 'off'], label: 'Rapid fire' }
+};
+
+export function normalizeOverrides(raw = {}) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [key, spec] of Object.entries(OVERRIDE_SPEC)) {
+    const value = raw[key];
+    if (value === undefined || value === null || value === '' || value === 'auto') continue;
+    if (spec.type === 'mode') {
+      if (spec.values.includes(value)) out[key] = value;
+    } else {
+      const n = num(value, undefined);
+      if (n !== undefined) out[key] = Math.round(clamp(n, spec.min, spec.max));
+    }
+  }
+  return out;
+}
+
 function normalizeAttachments(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -198,6 +232,7 @@ export function normalizeWeapon(raw = {}, { game = 'generic' } = {}) {
       pattern
     },
     attachments: normalizeAttachments(raw.attachments),
+    overrides: normalizeOverrides(raw.overrides),
     notes: String(pick(raw, 'notes') ?? '').slice(0, 400),
     source: raw.source || 'manual',
     confidence: raw.confidence === undefined ? undefined : clamp(num(raw.confidence, 0.5), 0, 1)

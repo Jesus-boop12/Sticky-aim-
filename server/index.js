@@ -13,8 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 import { listGames, CATEGORIES } from '../core/games.js';
 import { fullCatalog } from '../core/catalog.js';
-import { importFromCsv, importFromJson, normalizeWeapon } from '../core/weapons.js';
-import { computeTuning, normalizeProfile, DEFAULT_PROFILE } from '../core/tuning.js';
+import { importFromCsv, importFromJson, normalizeWeapon, OVERRIDE_SPEC } from '../core/weapons.js';
+import { computeTuning, normalizeProfile, DEFAULT_PROFILE, RAMP_SPEEDS, STICKY_SHAPES, STICKY_WHEN } from '../core/tuning.js';
 import { buildGpcScript, scriptFileName, listLayouts, MAX_SLOTS } from '../core/gpc.js';
 import { aiEnabled, extractWeaponsFromText, extractWeaponsFromImage, coach, MODEL } from './ai.js';
 
@@ -73,6 +73,12 @@ const ROUTES = {
     catalog: fullCatalog(),
     layouts: listLayouts(),
     defaultProfile: DEFAULT_PROFILE,
+    options: {
+      rampSpeeds: Object.keys(RAMP_SPEEDS),
+      stickyShapes: STICKY_SHAPES,
+      stickyWhen: STICKY_WHEN,
+      overrides: OVERRIDE_SPEC
+    },
     maxSlots: MAX_SLOTS,
     ai: { enabled: aiEnabled(), model: aiEnabled() ? MODEL : null }
   }),

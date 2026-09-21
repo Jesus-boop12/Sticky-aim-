@@ -36,9 +36,37 @@ floats, 0–10 ratings, 0–1000 indexes), and anything the importer had to gues
 is listed as a warning on the weapon.
 
 **2 · Tune** — enter your in-game settings (sensitivity, ADS multiplier,
-response curve, deadzone, controller). Every number in the script is recomputed
-live, with a chart of the correction curve, the phase table and a plain-English
-derivation for each value. Edit the weapon's stats in place to re-tune.
+response curve, deadzone, controller), then shape the mods themselves. Every
+number in the script is recomputed live, with a chart of the correction curve,
+the phase table and a plain-English derivation for each value.
+
+*Recoil control*
+
+| Option | What it does |
+|---|---|
+| Strength | Global trim on the pull, 0–150% |
+| Ramp-in speed | instant / fast / normal / slow — how quickly the correction reaches full strength |
+| Start delay trim | ±ms on the dead time before the pull begins |
+| Release threshold | how much of your own stick input cancels the correction |
+| Only while ADS | compensate only when aiming, or whenever you fire |
+| Horizontal correction | apply drift correction at all, or vertical only |
+
+*Sticky aim*
+
+| Option | What it does |
+|---|---|
+| On / off | master switch |
+| Strength | 0–200% trim on the movement radius (0 = off) |
+| Speed | 50–200% — higher means a faster loop |
+| Shape | circle, horizontal sweep, vertical bob, or diagonal corners |
+| Active | while aiming / while aiming **and** firing / all the time |
+
+*Per weapon* — every derived value can be overridden for one slot only: vertical
+push, horizontal push, start delay, release threshold, sticky radius and step,
+plus force-on/force-off switches for sticky aim and rapid fire. Empty means
+"keep the calculated value", each field shows what auto worked out (`auto (32)`),
+and anything you set by hand is flagged with a `*` in the script header. One
+button puts the weapon back on auto.
 
 **3 · Script** — copy or download the `.gpc`.
 
@@ -80,7 +108,7 @@ Other decisions worth knowing:
 - **Rapid fire is never applied to a full-auto weapon** (pulsing the trigger
   would make it slower) and is capped at the game's semi-auto fire-rate limit.
 - **Sticky aim is off for snipers** and for games with no aim assist to keep
-  awake (Siege, PUBG).
+  awake (Siege, PUBG) — override it per weapon if you disagree.
 - **Your own stick input wins.** Past a per-weapon release threshold the
   correction stops, so a flick is never fought by the script.
 
@@ -101,7 +129,7 @@ layout defines   controller bindings (XB1 or PS4/PS5)
 switches         ADS_ONLY, HAIR_TRIGGER, ANTI_DEADZONE, ADS_SLOW, START_SLOT
 weapon tables    PH_UNTIL / PH_V / PH_H (PHASES per slot), RF_*, STICKY_*
 main             hair trigger → anti-deadzone → ADS slow → anti-recoil
-combos           RAPID_FIRE, STICKY_AIM, FEEDBACK (rumble)
+combos           RAPID_FIRE, STICKY_AIM (shaped by your setting), FEEDBACK (rumble)
 ```
 
 On the controller:
@@ -147,16 +175,17 @@ All maths live in `core/` and run server-side, so the page, the API and the
 tests can never disagree about what a weapon tunes to.
 
 ```bash
-npm test      # 35 tests: importers, tuning bounds, GPC structure, API contract
+npm test      # 47 tests: importers, tuning bounds, options, overrides,
+              # GPC structure, API contract
 ```
 
 ### API
 
 | Route | Body | Returns |
 |---|---|---|
-| `GET /api/meta` | — | games, categories, catalog, layouts, defaults, AI status |
+| `GET /api/meta` | — | games, categories, catalog, layouts, defaults, option vocabularies, AI status |
 | `POST /api/import` | `{kind, payload, game}` — kind: `json` \| `csv` \| `text` \| `image` \| `manual` | `{weapons, mode, notes}` |
-| `POST /api/tune` | `{weapons, profile}` | `{entries}` (weapon + tuning) |
+| `POST /api/tune` | `{weapons, profile}` | `{entries}` (weapon + tuning, including `auto` and `overridden`) |
 | `POST /api/generate` | `{weapons, profile, title, modButton, startSlot}` | `{gpc, fileName, entries}` |
 | `POST /api/coach` | `{weapons, profile, question}` | `{text, mode}` |
 

@@ -8,7 +8,7 @@
  */
 
 import { getCategory, getGame } from './games.js';
-import { clamp } from './weapons.js';
+import { clamp, OVERRIDE_SPEC } from './weapons.js';
 
 export const DEFAULT_PROFILE = {
   controller: 'xbox',          // 'xbox' | 'playstation'
@@ -19,11 +19,27 @@ export const DEFAULT_PROFILE = {
   deadzone: 5,                 // in-game right stick deadzone, %
   adsOnly: true,               // only compensate while aiming down sights
   rapidFire: 'auto',           // 'auto' | 'on' | 'off'
-  stickyAim: true,
   hairTrigger: true,
   antiDeadzone: false,
-  adsSlowPercent: 100          // 100 = off; 80 = right stick runs at 80% while firing
+  adsSlowPercent: 100,         // 100 = off; 80 = right stick runs at 80% while firing
+
+  /* ---- recoil control ---- */
+  horizontalEnabled: true,     // apply horizontal correction at all
+  rampSpeed: 'normal',         // 'instant' | 'fast' | 'normal' | 'slow' - how fast the pull fades in
+  kickDelayTrim: 0,            // ms added to (or taken off) the first-shot delay
+  releaseScale: 100,           // % trim on how much of your own stick input cancels the pull
+
+  /* ---- sticky aim ---- */
+  stickyAim: true,
+  stickyStrength: 100,         // % trim on the micro-movement radius
+  stickySpeed: 100,            // % - higher is a faster circle (shorter step)
+  stickyShape: 'circle',       // 'circle' | 'horizontal' | 'vertical' | 'diagonal'
+  stickyWhen: 'ads'            // 'ads' | 'ads_fire' | 'always'
 };
+
+export const RAMP_SPEEDS = { instant: 0.25, fast: 0.6, normal: 1, slow: 1.7 };
+export const STICKY_SHAPES = ['circle', 'horizontal', 'vertical', 'diagonal'];
+export const STICKY_WHEN = ['ads', 'ads_fire', 'always'];
 
 export function normalizeProfile(raw = {}) {
   const p = { ...DEFAULT_PROFILE, ...raw };
@@ -40,7 +56,17 @@ export function normalizeProfile(raw = {}) {
     stickyAim: p.stickyAim !== false,
     hairTrigger: p.hairTrigger !== false,
     antiDeadzone: Boolean(p.antiDeadzone),
-    adsSlowPercent: clamp(Math.round(Number(p.adsSlowPercent) ?? 100), 50, 100)
+    adsSlowPercent: clamp(Math.round(Number(p.adsSlowPercent) ?? 100), 50, 100),
+
+    horizontalEnabled: p.horizontalEnabled !== false,
+    rampSpeed: RAMP_SPEEDS[p.rampSpeed] ? p.rampSpeed : 'normal',
+    kickDelayTrim: clamp(Math.round(Number(p.kickDelayTrim) || 0), -150, 400),
+    releaseScale: clamp(Math.round(Number(p.releaseScale) ?? 100), 50, 200),
+
+    stickyStrength: clamp(Math.round(Number(p.stickyStrength) ?? 100), 0, 200),
+    stickySpeed: clamp(Math.round(Number(p.stickySpeed) ?? 100), 50, 200),
+    stickyShape: STICKY_SHAPES.includes(p.stickyShape) ? p.stickyShape : 'circle',
+    stickyWhen: STICKY_WHEN.includes(p.stickyWhen) ? p.stickyWhen : 'ads'
   };
 }
 
@@ -83,8 +109,13 @@ export function computeTuning(weapon, rawProfile = {}) {
   const attachH = weapon.attachments.reduce((acc, a) => acc * (1 + a.recoilHorizontal), 1);
 
   const trim = profile.strength / 100;
+  const ov = weapon.overrides || {};
+  const overridden = [];
+  // What the tuner worked out on its own. Overrides replace the live values but
+  // never these, so the UI can always show "auto (32)" next to a hand-set field.
+  const auto = {};
 
-  const peakV = clamp(
+  let peakV = clamp(
     round(base * game.recoilGain * rpmFactor * sensFactor * adsFactor * curveFactor * attachV * trim),
     0,
     100
@@ -97,28 +128,62 @@ export function computeTuning(weapon, rawProfile = {}) {
     (trim !== 1 ? ` x trim ${trim.toFixed(2)}` : '')
   );
 
+  auto.antiRecoilVertical = peakV;
+  if (ov.antiRecoilVertical !== undefined) {
+    diagnostics.push(`Vertical set by hand: ${peakV} -> ${ov.antiRecoilVertical} (calculated value ignored).`);
+    peakV = ov.antiRecoilVertical;
+    overridden.push('antiRecoilVertical');
+  }
+
   // Horizontal is only worth correcting when the weapon pulls consistently to
   // one side. Random shake averages out and fighting it just adds sway.
   const drift = weapon.recoil.drift || 0;
   // push against the drift: a weapon that pulls right needs a stick push left
-  const peakH =
+  let peakH =
     clamp(
       round(weapon.recoil.horizontal * game.recoilGain * rpmFactor * sensFactor * adsFactor * attachH * trim * Math.abs(drift)),
       0,
       60
     ) * Math.sign(drift) * -1 || 0; // `|| 0` collapses -0, which would serialise oddly
-  if (drift === 0) {
+  if (!profile.horizontalEnabled && peakH !== 0) {
+    diagnostics.push(`Horizontal correction switched off in your settings (would have been ${peakH}).`);
+    peakH = 0;
+  } else if (drift === 0) {
     diagnostics.push('Horizontal correction off: this weapon has no consistent drift direction.');
   } else {
     diagnostics.push(`Horizontal ${peakH} - countering a ${drift < 0 ? 'left' : 'right'} drift of ${Math.abs(drift).toFixed(2)}.`);
   }
 
+  auto.antiRecoilHorizontal = peakH;
+  if (ov.antiRecoilHorizontal !== undefined) {
+    diagnostics.push(`Horizontal set by hand: ${peakH} -> ${ov.antiRecoilHorizontal}.`);
+    peakH = ov.antiRecoilHorizontal;
+    overridden.push('antiRecoilHorizontal');
+  }
+
   /* ---- timeline ----------------------------------------------------- */
   // Nothing to correct until the gun has actually kicked: at minimum one round,
   // plus whatever first-shot delay the game and the weapon add.
-  const kickMs = round(clamp(Math.max(weapon.recoil.firstShotKickMs, game.kickDelayMs, period * 0.9), 20, 400));
-  // Most patterns reach full strength around the 4th round.
-  const rampMs = round(clamp(period * 4, 120, 600));
+  let kickMs = round(clamp(
+    Math.max(weapon.recoil.firstShotKickMs, game.kickDelayMs, period * 0.9) + profile.kickDelayTrim,
+    0, 800
+  ));
+  if (profile.kickDelayTrim !== 0) {
+    diagnostics.push(`Start delay trimmed by ${profile.kickDelayTrim > 0 ? '+' : ''}${profile.kickDelayTrim}ms -> ${kickMs}ms.`);
+  }
+  auto.kickMs = kickMs;
+  if (ov.kickMs !== undefined) {
+    diagnostics.push(`Start delay set by hand: ${kickMs}ms -> ${ov.kickMs}ms.`);
+    kickMs = ov.kickMs;
+    overridden.push('kickMs');
+  }
+
+  // Most patterns reach full strength around the 4th round; ramp speed scales that.
+  const rampScale = RAMP_SPEEDS[profile.rampSpeed];
+  const rampMs = round(clamp(period * 4 * rampScale, 60, 900));
+  if (profile.rampSpeed !== 'normal') {
+    diagnostics.push(`Ramp speed "${profile.rampSpeed}" - full strength ${rampMs}ms after the pull instead of ${round(clamp(period * 4, 60, 900))}ms.`);
+  }
   const phases = weapon.recoil.pattern
     ? phasesFromPattern(weapon, { peakV, peakH, kickMs })
     : syntheticPhases({ peakV, peakH, kickMs, rampMs });
@@ -130,9 +195,11 @@ export function computeTuning(weapon, rawProfile = {}) {
   );
 
   /* ---- rapid fire ---------------------------------------------------- */
+  const rapidMode = ov.rapidFire || profile.rapidFire;
+  if (ov.rapidFire) overridden.push('rapidFire');
   const wantsRapid =
-    profile.rapidFire === 'on' ||
-    (profile.rapidFire === 'auto' && weapon.fireMode === 'semi' && category.rapidFireDefault);
+    rapidMode === 'on' ||
+    (rapidMode === 'auto' && weapon.fireMode === 'semi' && category.rapidFireDefault);
   const rapidTargetRpm = clamp(Math.min(weapon.rpm, game.semiFireCapRpm), 60, game.semiFireCapRpm);
   const rapidPeriod = shotPeriodMs(rapidTargetRpm);
   const holdMs = round(clamp(rapidPeriod * 0.45, 16, 60));
@@ -146,7 +213,7 @@ export function computeTuning(weapon, rawProfile = {}) {
   };
   if (rapidFire.enabled) {
     diagnostics.push(`Rapid fire ${holdMs}ms hold / ${restMs}ms rest = ~${rapidFire.effectiveRpm} RPM (game cap ${game.semiFireCapRpm}).`);
-  } else if (weapon.fireMode === 'auto' && profile.rapidFire === 'on') {
+  } else if (weapon.fireMode === 'auto' && rapidMode === 'on') {
     diagnostics.push('Rapid fire skipped: the weapon is already full-auto, pulsing the trigger would slow it down.');
   }
 
@@ -159,15 +226,51 @@ export function computeTuning(weapon, rawProfile = {}) {
   if (burst.enabled) diagnostics.push(`Burst weapon: correction restarts every ${burst.count} rounds with a ${burst.gapMs}ms gap.`);
 
   /* ---- sticky aim ----------------------------------------------------- */
-  const stickyEnabled = profile.stickyAim && game.aimAssist.type !== 'none' && category.stickyScale > 0;
+  const autoSticky = profile.stickyAim && game.aimAssist.type !== 'none' && category.stickyScale > 0;
+  let stickyEnabled = autoSticky;
+  if (ov.sticky) {
+    stickyEnabled = ov.sticky === 'on';
+    overridden.push('sticky');
+  }
+
+  const stickyTrim = profile.stickyStrength / 100;
+  let stickyRadius = stickyEnabled
+    ? clamp(round((game.aimAssist.radius || 5) * category.stickyScale * stickyTrim || 0), 0, 20)
+    : 0;
+  let stickyPeriod = stickyEnabled
+    ? clamp(round((game.aimAssist.periodMs || 100) * (100 / profile.stickySpeed)), 20, 400)
+    : 0;
+
+  auto.sticky = autoSticky ? 'on' : 'off';
+  auto.stickyRadius = stickyRadius;
+  auto.stickyPeriodMs = stickyPeriod;
+  if (stickyEnabled && ov.stickyRadius !== undefined) {
+    stickyRadius = ov.stickyRadius;
+    overridden.push('stickyRadius');
+  }
+  if (stickyEnabled && ov.stickyPeriodMs !== undefined) {
+    stickyPeriod = ov.stickyPeriodMs;
+    overridden.push('stickyPeriodMs');
+  }
+  if (stickyEnabled && stickyRadius === 0) stickyEnabled = false;   // 0 radius is just "off"
+
   const sticky = {
     enabled: stickyEnabled,
-    radius: stickyEnabled ? clamp(round(game.aimAssist.radius * category.stickyScale * trim), 2, 14) : 0,
-    periodMs: stickyEnabled ? clamp(round(game.aimAssist.periodMs), 40, 250) : 0,
+    radius: stickyEnabled ? stickyRadius : 0,
+    periodMs: stickyEnabled ? stickyPeriod : 0,
+    shape: profile.stickyShape,
+    when: profile.stickyWhen,
     mode: game.aimAssist.type
   };
+
+  const WHEN_LABEL = { ads: 'while aiming', ads_fire: 'while aiming and firing', always: 'all the time' };
   if (stickyEnabled) {
-    diagnostics.push(`Sticky aim: +/-${sticky.radius} circular micro-movement every ${sticky.periodMs}ms to keep ${game.aimAssist.type} aim assist alive.`);
+    diagnostics.push(
+      `Sticky aim: +/-${sticky.radius} ${sticky.shape} micro-movement every ${sticky.periodMs}ms ${WHEN_LABEL[sticky.when]}, ` +
+      `keeping ${game.aimAssist.type} aim assist alive.`
+    );
+  } else if (ov.sticky === 'off') {
+    diagnostics.push('Sticky aim switched off for this weapon.');
   } else if (profile.stickyAim) {
     diagnostics.push(`Sticky aim off for this weapon (${game.aimAssist.type === 'none' ? 'game has no aim assist' : category.label + ' handles better without it'}).`);
   }
@@ -180,7 +283,15 @@ export function computeTuning(weapon, rawProfile = {}) {
 
   // Releasing the correction when the player makes a real stick input keeps
   // manual tracking from fighting the script.
-  const releaseThreshold = clamp(round(20 + peakV * 0.35), 18, 60);
+  let releaseThreshold = clamp(round((20 + peakV * 0.35) * (profile.releaseScale / 100)), 5, 100);
+  auto.releaseThreshold = releaseThreshold;
+  if (ov.releaseThreshold !== undefined) {
+    releaseThreshold = ov.releaseThreshold;
+    overridden.push('releaseThreshold');
+  }
+  if (profile.releaseScale !== 100 || ov.releaseThreshold !== undefined) {
+    diagnostics.push(`Your own stick input cancels the pull past ${releaseThreshold} units.`);
+  }
 
   return {
     weaponId: weapon.id,
@@ -204,6 +315,8 @@ export function computeTuning(weapon, rawProfile = {}) {
     adsSlow: { enabled: profile.adsSlowPercent < 100, percent: profile.adsSlowPercent },
     shotPeriodMs: round(period),
     diagnostics,
+    overridden,
+    auto,
     confidence: estimateConfidence(weapon)
   };
 }

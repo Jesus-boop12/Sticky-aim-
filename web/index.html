@@ -141,19 +141,58 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
           </select>
         </label>
         <label class="field">Right stick deadzone (%) <input id="p-deadzone" type="number" min="0" max="30"></label>
+      </div>
+
+      <h3 style="margin-top:20px">Recoil control</h3>
+      <p class="hint">How hard the script pulls back, and when it starts.</p>
+      <div class="grid-2" style="margin-top:10px">
+        <label class="field">Strength: <b id="p-strength-val">100%</b>
+          <input id="p-strength" type="range" min="0" max="150" step="5">
+        </label>
+        <label class="field">Ramp-in speed
+          <select id="p-rampSpeed">
+            <option value="instant">Instant — full pull straight away</option>
+            <option value="fast">Fast</option>
+            <option value="normal">Normal</option>
+            <option value="slow">Slow — eases in over a long burst</option>
+          </select>
+        </label>
+        <label class="field">Start delay trim (ms) <input id="p-kickDelayTrim" type="number" step="10" min="-150" max="400"></label>
+        <label class="field">Release threshold: <b id="p-releaseScale-val">100%</b>
+          <input id="p-releaseScale" type="range" min="50" max="200" step="10">
+        </label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="toggle"><input type="checkbox" id="p-adsOnly"> Only compensate while ADS</label>
+        <label class="toggle"><input type="checkbox" id="p-horizontalEnabled"> Horizontal correction</label>
+      </div>
+
+      <h3 style="margin-top:20px">Sticky aim</h3>
+      <p class="hint">A small continuous stick movement that keeps the game's aim assist engaged. Bigger is not better — past a few units it drags your aim.</p>
+      <div class="row" style="margin:10px 0">
+        <label class="toggle"><input type="checkbox" id="p-stickyAim"> Sticky aim on</label>
+      </div>
+      <div class="grid-2">
+        <label class="field">Strength: <b id="p-stickyStrength-val">100%</b>
+          <input id="p-stickyStrength" type="range" min="0" max="200" step="10">
+        </label>
+        <label class="field">Speed: <b id="p-stickySpeed-val">100%</b>
+          <input id="p-stickySpeed" type="range" min="50" max="200" step="10">
+        </label>
+        <label class="field">Shape <select id="p-stickyShape"></select></label>
+        <label class="field">Active <select id="p-stickyWhen"></select></label>
+      </div>
+
+      <h3 style="margin-top:20px">Trigger &amp; stick</h3>
+      <div class="grid-2" style="margin-top:10px">
         <label class="field">Rapid fire
           <select id="p-rapidFire"><option value="auto">Auto (semi-auto guns only)</option><option value="on">Force on</option><option value="off">Off</option></select>
         </label>
-        <label class="field">Strength trim: <b id="p-strength-val">100%</b>
-          <input id="p-strength" type="range" min="0" max="150" step="5">
-        </label>
-        <label class="field">Aim slowdown while ADS: <b id="p-adsSlow-val">off</b>
+        <label class="field">Aim slowdown while ADS: <b id="p-adsSlowPercent-val">off</b>
           <input id="p-adsSlowPercent" type="range" min="50" max="100" step="5">
         </label>
       </div>
-      <div class="row" style="margin-top:12px">
-        <label class="toggle"><input type="checkbox" id="p-adsOnly"> Only compensate while ADS</label>
-        <label class="toggle"><input type="checkbox" id="p-stickyAim"> Sticky aim</label>
+      <div class="row" style="margin-top:10px">
         <label class="toggle"><input type="checkbox" id="p-hairTrigger"> Hair triggers</label>
         <label class="toggle"><input type="checkbox" id="p-antiDeadzone"> Anti-deadzone</label>
       </div>
