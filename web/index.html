@@ -242,14 +242,38 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
         <span class="hint" id="script-meta"></span>
       </div>
       <pre class="script" id="script-out">Add a weapon, then press Generate script.</pre>
-      <details style="margin-top:14px">
-        <summary class="hint">How to load this onto a Cronus device</summary>
-        <ol class="hint" style="line-height:1.7">
-          <li>Open Cronus Zen Studio (or Gtuner for a Titan) and sign in.</li>
-          <li>File → New GPC Script, paste this in, then Build (F7). It should compile with no errors.</li>
-          <li>Program the script to a memory slot and switch to that slot on the device.</li>
-          <li>Go to a practice range, hold the trigger on a wall and trim the numbers as described in the script header.</li>
+      <details class="loadguide" open style="margin-top:16px">
+        <summary>Getting this onto your Cronus</summary>
+        <ol>
+          <li><b>Install Cronus Zen Studio</b> on a PC or Mac and sign in with your Cronus account.
+            (Titan Two owners: Gtuner IV instead — the flow below is the same, the menus are named differently.)</li>
+          <li><b>Connect the Zen to the computer using the PROG port</b> — the small port on the side, not the
+            OUTPUT port the console plugs into. This is the step people get wrong. Zen Studio should show the
+            device as connected; take any firmware update it offers.</li>
+          <li><b>Open a new GPC script</b> and paste this one in, then <b>Build</b> it. It should compile with no
+            errors — if it does not, the error message names the line.</li>
+          <li><b>Program it into a memory slot</b> and note the slot number.</li>
+          <li><b>Unplug from the computer and wire it to the console:</b> the console's USB cable into the Zen's
+            <b>OUTPUT</b> port, your controller into the Zen's <b>INPUT</b> port.</li>
+          <li><b>Select your slot</b> on the device — the display shows which one is live. When the script starts
+            you get one rumble pulse per weapon slot number.</li>
+          <li><b>Go to a practice range before a real match.</b> Hold the trigger on a wall at about 20m and trim
+            the numbers using the guide in the script header.</li>
         </ol>
+        <p class="hint">Menu names and shortcuts move around between Zen Studio versions — if something here does
+          not match what you see, look for the equivalent Build / Program action.</p>
+
+        <h3 style="margin-top:14px">It compiled but nothing happens in game</h3>
+        <ul class="hint" style="line-height:1.7">
+          <li>Wrong slot selected on the device, or the master toggle is off — hold the modifier button and press
+            D-pad down to toggle it back on.</li>
+          <li>The script is set to <i>only compensate while ADS</i> and you are hip-firing. Turn that off in the
+            Tune tab if you want it always on.</li>
+          <li>Your in-game deadzone is larger than the pull, so the game throws it away. The Tune tab warns you
+            when that happens.</li>
+          <li>Controller layout mismatch — an Xbox script on a PlayStation pad watches the wrong buttons.
+            Switch the controller setting and re-generate.</li>
+        </ul>
       </details>
     </div>
 

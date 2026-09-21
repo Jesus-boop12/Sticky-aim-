@@ -177,14 +177,27 @@ The modifier button (View/Share by default) is swallowed while held, so the
 game never sees it. The device rumbles once per slot number, so you always know
 which weapon is loaded without looking.
 
-### Loading it
+### Loading it onto the device
 
-1. Zen Studio → File → New GPC Script, paste, **Build (F7)**.
-2. Program it to a memory slot and select that slot on the device.
-3. Practice range: hold the trigger on a wall at ~20m.
+The same steps are in the app, under the generated script.
+
+1. Install **Cronus Zen Studio** and sign in. (Titan Two: **Gtuner IV** — same flow, different menu names.)
+2. Connect the Zen to the computer with the **PROG** port, the small one on the side — *not* the OUTPUT
+   port the console uses. This is the step people get wrong. Take any firmware update it offers.
+3. Open a new GPC script, paste this one in, **Build**. It should compile clean; an error names its line.
+4. **Program it into a memory slot** and note the slot number.
+5. Unplug from the computer: console USB → the Zen's **OUTPUT** port, controller → the Zen's **INPUT** port.
+6. Select your slot on the device. On boot you get one rumble pulse per weapon slot number.
+7. Practice range before a real match — hold the trigger on a wall at ~20m:
    - Shots land **above** the dot → `PH_V` too low, raise ~2 at a time.
    - Shots land **below** the dot → too high, lower it.
    - The script fights your aim → lower `AR_RELEASE` for that slot.
+
+Menu names and shortcuts move between Zen Studio versions; look for the equivalent Build / Program action.
+
+**Compiles but does nothing in game?** Wrong slot selected or the master toggle is off (modifier + D-pad down);
+the script is ADS-only and you are hip-firing; your in-game deadzone is bigger than the pull (the Tune tab warns
+about this); or the controller layout does not match the pad you are using.
 
 ---
 
