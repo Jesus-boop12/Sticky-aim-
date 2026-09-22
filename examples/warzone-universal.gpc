@@ -1,0 +1,314 @@
+/* ==========================================================================
+ *  Warzone - universal (all guns)
+ *  --------------------------------------------------------------------------
+ *  Game        : Call of Duty: Warzone
+ *  Controller  : Xbox / PC (XB1 layout)
+ *  Author      : Sticky Aim Studio
+ *  Generated   : 2026-09-22 02:06 by Sticky Aim Weapon Studio
+ *  Settings    : sens 6, ADS x0.85, dynamic curve, deadzone 3, trim 100%
+ *
+ *  HOW "AUTOMATIC" WORKS HERE - READ THIS FIRST
+ *   A Cronus only sees your controller. It cannot read the game, so it cannot know which gun you are
+ *     holding. What it can do is watch your weapon-swap button: tell it what your primary and
+ *     secondary are once, and every swap flips the profile with you. Nothing else about the game is
+ *     visible to it.
+ *
+ *   Anything that changes your weapon WITHOUT a swap press - picking a gun off the ground, a
+ *     killstreak, respawning onto your other slot - leaves it one profile behind. Tap swap twice to
+ *     resync.
+ *
+ *  CLASS PROFILES
+ *   0 Assault Rifle    V:36   from 41 weapons   (they run 27-43) sticky 6
+ *   1 SMG              V:31   from 39 weapons   (they run 28-45) sticky 7
+ *   2 LMG              V:46   from 17 weapons   (they run 45-49) sticky 5
+ *   3 Battle Rifle     V:32   from 10 weapons   (they run 32-39) sticky 5
+ *   4 Marksman / DMR   V:18   from 17 weapons   (they run 16-20) sticky 4, rapid fire
+ *   5 Sniper           V:38   from 19 weapons   (they run 38-42) no sticky
+ *   6 Shotgun          V:28   from 14 weapons   (they run 28-28) sticky 5, rapid fire
+ *   7 Pistol           V:16   from 18 weapons   (they run 16-32) sticky 6, rapid fire
+ *
+ *  Boots as: primary = Assault Rifle, secondary = SMG
+ *
+ *  CONTROLS
+ *   XB1_Y                          : your normal weapon swap - the profile follows it
+ *   Hold XB1_VIEW  + D-PAD RIGHT/LEFT : change the class of the weapon you are holding
+ *   Hold XB1_VIEW  + D-PAD UP         : rumble out the class you are on
+ *   Hold XB1_VIEW  + D-PAD DOWN       : master on/off
+ *   Hold XB1_VIEW  + XB1_Y         : resync without swapping in game
+ *
+ *  TRIMMING
+ *   A class profile sits in the middle of its class, so a gun at the edge of that
+ *   range will be over- or under-corrected. Raise or lower that class's numbers in
+ *   PH_V[] - the block of 4 starting at (class number x 4) - or build a
+ *   single-weapon script for the gun you actually live on.
+ *
+ *   [0] Assault Rifle - e.g. M15 MOD 0, AK-27, DS20 Mirage
+ *        Built from all 41 assault rifles in the roster; their individual pulls run 27-43, this
+ *          profile sits at the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *   [1] SMG - e.g. Ryden 45K, Dravec 45, Razor 9mm
+ *        Built from all 39 smgs in the roster; their individual pulls run 28-45, this profile sits at
+ *          the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *   [2] LMG - e.g. MK.78, XM325, PU-21
+ *        Built from all 17 lmgs in the roster; their individual pulls run 45-49, this profile sits at
+ *          the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *   [3] Battle Rifle - e.g. SWAT 5.56, AEK-973 Battle, Tsarkov 7.62
+ *        Built from all 10 battle rifles in the roster; their individual pulls run 32-39, this
+ *          profile sits at the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *   [4] Marksman / DMR - e.g. M8A1, Warden 308, M34 Novaline
+ *        Built from all 17 marksman / dmrs in the roster; their individual pulls run 16-20, this
+ *          profile sits at the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *   [5] Sniper - e.g. NX Ravager, VS Recon, XR-3 Ion
+ *        Built from all 19 snipers in the roster; their individual pulls run 38-42, this profile sits
+ *          at the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *   [6] Shotgun - e.g. M10 Breacher, Echo 12, Akita
+ *        Built from all 14 shotguns in the roster; their individual pulls run 28-28, this profile
+ *          sits at the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *   [7] Pistol - e.g. Jager 45, Coda 9, Velox 5.7
+ *        Built from all 18 pistols in the roster; their individual pulls run 16-32, this profile sits
+ *          at the middle.
+ *        Horizontal correction is off for a class profile: the guns in a class drift different ways,
+ *          so a shared value would be wrong for half of them.
+ *
+ *  These values are a calculated starting point, not a guarantee. Verify on a
+ *  practice range and trim before you rely on it.
+ * ========================================================================== */
+
+/* ---------------- controller layout ---------------- */
+define BTN_FIRE   = XB1_RT;
+define BTN_ADS    = XB1_LT;
+define STICK_RX   = XB1_RX;
+define STICK_RY   = XB1_RY;   // positive = down, which is what fights muzzle climb
+define BTN_SWAP   = XB1_Y;   // your in-game weapon swap
+define BTN_MOD    = XB1_VIEW;
+define DPAD_UP    = XB1_UP;
+define DPAD_DOWN  = XB1_DOWN;
+define DPAD_LEFT  = XB1_LEFT;
+define DPAD_RIGHT = XB1_RIGHT;
+
+/* ---------------- global switches ---------------- */
+define CLASS_COUNT    = 8;
+define PHASES         = 4;
+define ADS_ONLY       = TRUE;
+define FIRE_POINT     = 10;
+define ADS_POINT      = 10;
+define HAIR_TRIGGER   = TRUE;
+define HAIR_POINT     = 12;
+define ANTI_DEADZONE  = 0;
+define ADS_SLOW       = 100;
+define START_PRIMARY  = 0;    // Assault Rifle
+define START_SECOND   = 1;    // SMG
+
+/* ---------------- class tables (one block of PHASES per class) ---------------- */
+/*  0 = Assault Rifle */
+/*  1 = SMG */
+/*  2 = LMG */
+/*  3 = Battle Rifle */
+/*  4 = Marksman / DMR */
+/*  5 = Sniper */
+/*  6 = Shotgun */
+/*  7 = Pistol */
+const int16 PH_UNTIL[] = { 80, 221, 433, 32000, 80, 193, 362, 32000, 84, 234, 459, 32000, 120, 333, 653, 32000, 169, 469, 919, 32000, 800, 1160, 1700, 32000, 600, 960, 1500, 32000, 142, 395, 774, 32000 };   // ms since trigger pull that each phase ends
+const int8  PH_V[] = { 0, 23, 32, 36, 0, 20, 27, 31, 0, 30, 40, 46, 0, 21, 28, 32, 0, 12, 16, 18, 0, 25, 33, 38, 0, 18, 25, 28, 0, 10, 14, 16 };   // vertical stick push for that phase
+const int8  PH_H[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };   // horizontal - always 0 for a class profile
+const int8  AR_RELEASE[] = { 33, 31, 36, 31, 26, 33, 30, 26 };   // your own stick input that cancels the pull
+const int8  RF_ON[] = { 0, 0, 0, 0, 1, 0, 1, 1 };   // rapid fire per class
+const int16 RF_HOLD[] = { 60, 60, 60, 60, 60, 60, 60, 60 };   // ms the trigger is held
+const int16 RF_REST[] = { 90, 90, 90, 90, 128, 940, 607, 98 };   // ms the trigger is released
+const int8  STICKY_ON[] = { 1, 1, 1, 1, 1, 0, 1, 1 };   // sticky aim per class
+const int8  STICKY_R[] = { 6, 7, 5, 5, 4, 0, 5, 6 };   // micro-movement radius
+const int16 STICKY_MS[] = { 100, 100, 100, 100, 100, 100, 100, 100 };   // ms per step
+
+/* ---------------- state ---------------- */
+int primary_class;
+int second_class;
+int holding_second;   // FALSE = primary in hand, TRUE = secondary
+int cls;
+int mods_on;
+int fire_ms;
+int idx;
+int arv;
+int arh;
+int rf_hold;
+int rf_rest;
+int sticky_r;
+int sticky_ms;
+int blips;
+int firing;
+int aiming;
+
+init {
+    primary_class = START_PRIMARY;
+    second_class = START_SECOND;
+    holding_second = FALSE;
+    mods_on = TRUE;
+    blips = 1;
+}
+
+main {
+    /* ---- follow the weapon swap: this is the whole "automatic" part ---- */
+    if(!get_val(BTN_MOD) && event_press(BTN_SWAP)) {
+        if(holding_second) holding_second = FALSE;
+        else holding_second = TRUE;
+    }
+
+    /* ---- modifier layer ---- */
+    if(get_val(BTN_MOD)) {
+        set_val(BTN_MOD, 0);
+        set_val(DPAD_UP, 0);
+        set_val(DPAD_DOWN, 0);
+        set_val(DPAD_LEFT, 0);
+        set_val(DPAD_RIGHT, 0);
+        set_val(BTN_SWAP, 0);
+        if(event_press(BTN_SWAP)) {                 // resync without swapping in game
+            if(holding_second) holding_second = FALSE;
+            else holding_second = TRUE;
+            blips = 1;
+        }
+        if(event_press(DPAD_RIGHT)) {               // next class for the gun in hand
+            if(holding_second) {
+                second_class = second_class + 1;
+                if(second_class >= CLASS_COUNT) second_class = 0;
+                blips = second_class + 1;
+            } else {
+                primary_class = primary_class + 1;
+                if(primary_class >= CLASS_COUNT) primary_class = 0;
+                blips = primary_class + 1;
+            }
+        }
+        if(event_press(DPAD_LEFT)) {
+            if(holding_second) {
+                second_class = second_class - 1;
+                if(second_class < 0) second_class = CLASS_COUNT - 1;
+                blips = second_class + 1;
+            } else {
+                primary_class = primary_class - 1;
+                if(primary_class < 0) primary_class = CLASS_COUNT - 1;
+                blips = primary_class + 1;
+            }
+        }
+        if(event_press(DPAD_DOWN)) {
+            if(mods_on) { mods_on = FALSE; blips = 3; }
+            else        { mods_on = TRUE;  blips = 1; }
+        }
+        if(event_press(DPAD_UP)) blips = cls + 1;
+    }
+
+    if(holding_second) cls = second_class; else cls = primary_class;
+
+    if(blips > 0 && !combo_running(FEEDBACK)) combo_run(FEEDBACK);
+
+    /* ---- hair trigger ---- */
+    if(HAIR_TRIGGER && mods_on) {
+        if(get_val(BTN_FIRE) > HAIR_POINT) set_val(BTN_FIRE, 100);
+        if(get_val(BTN_ADS) > HAIR_POINT) set_val(BTN_ADS, 100);
+    }
+
+    if(get_val(BTN_FIRE) > FIRE_POINT) firing = TRUE; else firing = FALSE;
+    if(get_val(BTN_ADS) > ADS_POINT) aiming = TRUE; else aiming = FALSE;
+
+    /* ---- anti-deadzone ---- */
+    if(mods_on && ANTI_DEADZONE > 0) {
+        if(get_val(STICK_RX) > 0 && get_val(STICK_RX) < ANTI_DEADZONE) set_val(STICK_RX, ANTI_DEADZONE);
+        if(get_val(STICK_RX) < 0 && get_val(STICK_RX) > (0 - ANTI_DEADZONE)) set_val(STICK_RX, 0 - ANTI_DEADZONE);
+        if(get_val(STICK_RY) > 0 && get_val(STICK_RY) < ANTI_DEADZONE) set_val(STICK_RY, ANTI_DEADZONE);
+        if(get_val(STICK_RY) < 0 && get_val(STICK_RY) > (0 - ANTI_DEADZONE)) set_val(STICK_RY, 0 - ANTI_DEADZONE);
+    }
+
+    /* ---- ADS slow ---- */
+    if(mods_on && ADS_SLOW < 100 && aiming) {
+        set_val(STICK_RX, (get_val(STICK_RX) * ADS_SLOW) / 100);
+        set_val(STICK_RY, (get_val(STICK_RY) * ADS_SLOW) / 100);
+    }
+
+    /* ---- anti-recoil for the class in your hands ---- */
+    if(mods_on && firing && (!ADS_ONLY || aiming)) {
+        fire_ms = fire_ms + get_rtime();
+        idx = cls * PHASES;
+        if(fire_ms < PH_UNTIL[idx]) {
+            arv = PH_V[idx];
+            arh = PH_H[idx];
+        } else if(fire_ms < PH_UNTIL[idx + 1]) {
+            arv = PH_V[idx + 1];
+            arh = PH_H[idx + 1];
+        } else if(fire_ms < PH_UNTIL[idx + 2]) {
+            arv = PH_V[idx + 2];
+            arh = PH_H[idx + 2];
+        } else {
+            arv = PH_V[idx + 3];
+            arh = PH_H[idx + 3];
+        }
+        if(abs(get_val(STICK_RY)) < AR_RELEASE[cls]) set_val(STICK_RY, lim(get_val(STICK_RY) + arv));
+        if(arh != 0 && abs(get_val(STICK_RX)) < AR_RELEASE[cls]) set_val(STICK_RX, lim(get_val(STICK_RX) + arh));
+    } else {
+        fire_ms = 0;
+    }
+
+    /* ---- rapid fire ---- */
+    if(mods_on && RF_ON[cls] && firing) {
+        rf_hold = RF_HOLD[cls];
+        rf_rest = RF_REST[cls];
+        combo_run(RAPID_FIRE);
+    } else if(combo_running(RAPID_FIRE)) {
+        combo_stop(RAPID_FIRE);
+    }
+
+    /* ---- sticky aim ---- */
+    if(mods_on && STICKY_ON[cls] && aiming) {
+        sticky_r = STICKY_R[cls];
+        sticky_ms = STICKY_MS[cls];
+        combo_run(STICKY_AIM);
+    } else if(combo_running(STICKY_AIM)) {
+        combo_stop(STICKY_AIM);
+    }
+
+}
+
+/* clamp to the stick range so a correction never wraps around */
+function lim(value) {
+    if(value > 100) return 100;
+    if(value < -100) return -100;
+    return value;
+}
+
+combo RAPID_FIRE {
+    set_val(BTN_FIRE, 100);
+    wait(rf_hold);
+    set_val(BTN_FIRE, 0);
+    wait(rf_rest);
+    set_val(BTN_FIRE, 0);
+}
+
+/* circle micro-movement */
+combo STICKY_AIM {
+    set_val(STICK_RX, lim(get_val(STICK_RX) + sticky_r));
+    wait(sticky_ms);
+    set_val(STICK_RY, lim(get_val(STICK_RY) + sticky_r));
+    wait(sticky_ms);
+    set_val(STICK_RX, lim(get_val(STICK_RX) - sticky_r));
+    wait(sticky_ms);
+    set_val(STICK_RY, lim(get_val(STICK_RY) - sticky_r));
+    wait(sticky_ms);
+}
+
+/* one rumble pulse per pending blip - class 3 buzzes three times */
+combo FEEDBACK {
+    set_rumble(RUMBLE_A, 60);
+    wait(90);
+    reset_rumble();
+    wait(140);
+    blips = blips - 1;
+}

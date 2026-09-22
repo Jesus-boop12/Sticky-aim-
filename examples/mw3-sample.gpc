@@ -1,0 +1,228 @@
+/* ==========================================================================
+ *  MW3 sample - MCW / Striker / KATT-AMR
+ *  --------------------------------------------------------------------------
+ *  Game        : Call of Duty: Modern Warfare III
+ *  Controller  : Xbox / PC (XB1 layout)
+ *  Author      : Sticky Aim Studio
+ *  Generated   : 2026-09-22 01:32 by Sticky Aim Weapon Studio
+ *  Settings    : sens 6, ADS x0.85, standard curve, deadzone 5, trim 100%
+ *
+ *  SLOTS
+ *   0 MCW                    Assault Rifle  V:32   H:-1    RF:off       Sticky:+/-7
+ *   1 Striker                SMG            V:29   H:-3    RF:off       Sticky:+/-8
+ *   2 KATT-AMR               Sniper         V:41   H:0     RF:off       Sticky:off
+ *
+ *  RECOIL CONTROL
+ *   Applied        : while aiming down sights
+ *   Ramp speed     : normal (correction fades in over the PH_UNTIL phases)
+ *   Horizontal     : on, only for weapons with a consistent drift
+ *   Release        : your own stick input past AR_RELEASE cancels the pull
+ *
+ *  STICKY AIM
+ *   Shape          : circle micro-movement
+ *   Active         : while aiming down sights
+ *   Size / speed   : STICKY_R[] units per step, STICKY_MS[] ms per step
+ *
+ *  CONTROLS
+ *   Hold XB1_VIEW     + D-PAD RIGHT/LEFT : next / previous weapon slot
+ *   Hold XB1_VIEW     + D-PAD DOWN       : master on/off
+ *   Hold XB1_VIEW     + D-PAD UP         : rumble out the current slot number
+ *   (the modifier button itself is blocked while held, so nothing fires in game)
+ *
+ *  TRIMMING
+ *   Too much correction -> lower the numbers in PH_V[] for that slot.
+ *   Gun still climbs    -> raise them, ~2 units at a time.
+ *   Correction too soon -> raise the first value in PH_UNTIL[] for that slot.
+ *   Fighting your aim   -> lower AR_RELEASE[] for that slot.
+ *
+ *  HOW EACH SLOT WAS DERIVED
+ *   [0] MCW - 750 RPM, auto, recoil 38/11 (source: preset, confidence 0.57)
+ *        Vertical 32/100 = recoil 38 x gain 0.62 x rpm 1.12 x sens 1.00 x ads 1.00 x curve 1.20
+ *        Horizontal -1 - countering a right drift of 0.10.
+ *        No pattern data - ramping in over 320ms after a 72ms first-shot delay.
+ *        Sticky aim: +/-7 circle micro-movement every 90ms while aiming, keeping rotational aim assist alive.
+ *   [1] Striker - 857 RPM, auto, recoil 33/15 (source: preset, confidence 0.57)
+ *        Vertical 29/100 = recoil 33 x gain 0.62 x rpm 1.20 x sens 1.00 x ads 1.00 x curve 1.20
+ *        Horizontal -3 - countering a right drift of 0.30.
+ *        No pattern data - ramping in over 280ms after a 70ms first-shot delay.
+ *        Sticky aim: +/-8 circle micro-movement every 90ms while aiming, keeping rotational aim assist alive.
+ *   [2] KATT-AMR - 38 RPM, semi, recoil 78/7 (source: preset, confidence 0.57)
+ *        Vertical 41/100 = recoil 78 x gain 0.62 x rpm 0.70 x sens 1.00 x ads 1.00 x curve 1.20
+ *        Horizontal correction off: this weapon has no consistent drift direction.
+ *        No pattern data - ramping in over 900ms after a 800ms first-shot delay.
+ *        Sticky aim off for this weapon (Sniper handles better without it).
+ *
+ *  These values are a calculated starting point, not a guarantee. Verify every
+ *  slot on a practice range and trim before you rely on it.
+ * ========================================================================== */
+
+/* ---------------- controller layout ---------------- */
+define BTN_FIRE   = XB1_RT;
+define BTN_ADS    = XB1_LT;
+define STICK_RX   = XB1_RX;
+define STICK_RY   = XB1_RY;   // positive = down, which is what fights muzzle climb
+define BTN_MOD    = XB1_VIEW;
+define DPAD_UP    = XB1_UP;
+define DPAD_DOWN  = XB1_DOWN;
+define DPAD_LEFT  = XB1_LEFT;
+define DPAD_RIGHT = XB1_RIGHT;
+
+/* ---------------- global switches ---------------- */
+define WEAPON_COUNT   = 3;
+define PHASES         = 4;
+define ADS_ONLY       = TRUE;   // compensate only while aiming down sights
+define FIRE_POINT     = 10;      // trigger value that counts as "firing"
+define ADS_POINT      = 10;
+define HAIR_TRIGGER   = TRUE;
+define HAIR_POINT     = 12;      // pull past this and the trigger goes to 100%
+define ANTI_DEADZONE  = 0;       // 0 = off
+define ADS_SLOW       = 100;     // right stick % while aiming (100 = off)
+define START_SLOT     = 0;
+/* sticky aim: circle shape, active while aiming down sights */
+
+/* ---------------- weapon tables (one block of PHASES per slot) ---------------- */
+const int16 PH_UNTIL[] = { 72, 200, 392, 32000, 70, 182, 350, 32000, 800, 1160, 1700, 32000 };   // ms since trigger pull that each phase ends
+const int8  PH_V[] = { 0, 21, 28, 32, 0, 19, 26, 29, 0, 27, 36, 41 };   // vertical stick push for that phase
+const int8  PH_H[] = { 0, 0, -1, -1, 0, -1, -3, -3, 0, 0, 0, 0 };   // horizontal stick push (+ = right)
+const int8  AR_RELEASE[] = { 31, 30, 34 };   // your own stick input that cancels the pull
+const int8  RF_ON[] = { 0, 0, 0 };   // rapid fire per slot
+const int16 RF_HOLD[] = { 60, 60, 60 };   // ms the trigger is held
+const int16 RF_REST[] = { 90, 90, 940 };   // ms the trigger is released
+const int8  STICKY_ON[] = { 1, 1, 0 };   // sticky aim per slot
+const int8  STICKY_R[] = { 7, 8, 0 };   // micro-movement radius
+const int16 STICKY_MS[] = { 90, 90, 100 };   // ms per step
+
+/* ---------------- state ---------------- */
+int slot;
+int mods_on;
+int fire_ms;
+int idx;
+int arv;
+int arh;
+int rf_hold;
+int rf_rest;
+int sticky_r;
+int sticky_ms;
+int blips;
+int firing;
+int aiming;
+
+init {
+    slot = START_SLOT;
+    mods_on = TRUE;
+    blips = START_SLOT + 1;
+}
+
+main {
+    /* ---- modifier layer: slot select + master toggle ---- */
+    if(get_val(BTN_MOD)) {
+        set_val(BTN_MOD, 0);            // swallow the button so the game never sees it
+        set_val(DPAD_UP, 0);
+        set_val(DPAD_DOWN, 0);
+        set_val(DPAD_LEFT, 0);
+        set_val(DPAD_RIGHT, 0);
+        if(event_press(DPAD_RIGHT)) {
+            slot = slot + 1;
+            if(slot >= WEAPON_COUNT) slot = 0;
+            blips = slot + 1;
+        }
+        if(event_press(DPAD_LEFT)) {
+            slot = slot - 1;
+            if(slot < 0) slot = WEAPON_COUNT - 1;
+            blips = slot + 1;
+        }
+        if(event_press(DPAD_DOWN)) {
+            if(mods_on) { mods_on = FALSE; blips = 3; }
+            else        { mods_on = TRUE;  blips = 1; }
+        }
+        if(event_press(DPAD_UP)) blips = slot + 1;
+    }
+
+    if(blips > 0 && !combo_running(FEEDBACK)) combo_run(FEEDBACK);
+
+    /* ---- hair trigger: kill the dead travel on the analog triggers ---- */
+    if(HAIR_TRIGGER && mods_on) {
+        if(get_val(BTN_FIRE) > HAIR_POINT) set_val(BTN_FIRE, 100);
+        if(get_val(BTN_ADS) > HAIR_POINT) set_val(BTN_ADS, 100);
+    }
+
+    if(get_val(BTN_FIRE) > FIRE_POINT) firing = TRUE; else firing = FALSE;
+    if(get_val(BTN_ADS) > ADS_POINT) aiming = TRUE; else aiming = FALSE;
+
+    /* every block below is gated on mods_on - master off passes the pad straight through */
+    /* ---- anti-deadzone: small stick inputs actually move the camera ---- */
+    if(mods_on && ANTI_DEADZONE > 0) {
+        if(get_val(STICK_RX) > 0 && get_val(STICK_RX) < ANTI_DEADZONE) set_val(STICK_RX, ANTI_DEADZONE);
+        if(get_val(STICK_RX) < 0 && get_val(STICK_RX) > (0 - ANTI_DEADZONE)) set_val(STICK_RX, 0 - ANTI_DEADZONE);
+        if(get_val(STICK_RY) > 0 && get_val(STICK_RY) < ANTI_DEADZONE) set_val(STICK_RY, ANTI_DEADZONE);
+        if(get_val(STICK_RY) < 0 && get_val(STICK_RY) > (0 - ANTI_DEADZONE)) set_val(STICK_RY, 0 - ANTI_DEADZONE);
+    }
+
+    /* ---- ADS slow: steadier tracking while aiming ---- */
+    if(mods_on && ADS_SLOW < 100 && aiming) {
+        set_val(STICK_RX, (get_val(STICK_RX) * ADS_SLOW) / 100);
+        set_val(STICK_RY, (get_val(STICK_RY) * ADS_SLOW) / 100);
+    }
+
+    /* ---- anti-recoil ---- */
+    if(mods_on && firing && (!ADS_ONLY || aiming)) {
+        fire_ms = fire_ms + get_rtime();
+        idx = slot * PHASES;
+        if(fire_ms < PH_UNTIL[idx]) {
+            arv = PH_V[idx];
+            arh = PH_H[idx];
+        } else if(fire_ms < PH_UNTIL[idx + 1]) {
+            arv = PH_V[idx + 1];
+            arh = PH_H[idx + 1];
+        } else if(fire_ms < PH_UNTIL[idx + 2]) {
+            arv = PH_V[idx + 2];
+            arh = PH_H[idx + 2];
+        } else {
+            arv = PH_V[idx + 3];
+            arh = PH_H[idx + 3];
+        }
+        /* your own stick input always wins past the release threshold */
+        if(abs(get_val(STICK_RY)) < AR_RELEASE[slot]) set_val(STICK_RY, lim(get_val(STICK_RY) + arv));
+        if(arh != 0 && abs(get_val(STICK_RX)) < AR_RELEASE[slot]) set_val(STICK_RX, lim(get_val(STICK_RX) + arh));
+    } else {
+        fire_ms = 0;
+    }
+
+    /* ---- sticky aim: keep the game's aim assist bubble awake ---- */
+    if(mods_on && STICKY_ON[slot] && aiming) {
+        sticky_r = STICKY_R[slot];
+        sticky_ms = STICKY_MS[slot];
+        combo_run(STICKY_AIM);
+    } else if(combo_running(STICKY_AIM)) {
+        combo_stop(STICKY_AIM);
+    }
+
+}
+
+/* clamp to the stick range so a correction never wraps around */
+function lim(value) {
+    if(value > 100) return 100;
+    if(value < -100) return -100;
+    return value;
+}
+
+/* circle micro-movement - one full loop per 4 steps */
+combo STICKY_AIM {
+    set_val(STICK_RX, lim(get_val(STICK_RX) + sticky_r));
+    wait(sticky_ms);
+    set_val(STICK_RY, lim(get_val(STICK_RY) + sticky_r));
+    wait(sticky_ms);
+    set_val(STICK_RX, lim(get_val(STICK_RX) - sticky_r));
+    wait(sticky_ms);
+    set_val(STICK_RY, lim(get_val(STICK_RY) - sticky_r));
+    wait(sticky_ms);
+}
+
+/* one rumble pulse per pending blip - slot 3 buzzes three times */
+combo FEEDBACK {
+    set_rumble(RUMBLE_A, 60);
+    wait(90);
+    reset_rumble();
+    wait(140);
+    blips = blips - 1;
+}
