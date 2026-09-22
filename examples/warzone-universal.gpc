@@ -4,7 +4,7 @@
  *  Game        : Call of Duty: Warzone
  *  Controller  : Xbox / PC (XB1 layout)
  *  Author      : Sticky Aim Studio
- *  Generated   : 2026-09-22 02:06 by Sticky Aim Weapon Studio
+ *  Generated   : 2026-09-22 02:28 by Sticky Aim Weapon Studio
  *  Settings    : sens 6, ADS x0.85, dynamic curve, deadzone 3, trim 100%
  *
  *  HOW "AUTOMATIC" WORKS HERE - READ THIS FIRST
@@ -136,7 +136,7 @@ const int16 STICKY_MS[] = { 100, 100, 100, 100, 100, 100, 100, 100 };   // ms pe
 int primary_class;
 int second_class;
 int holding_second;   // FALSE = primary in hand, TRUE = secondary
-int cls;
+int wclass;
 int mods_on;
 int fire_ms;
 int idx;
@@ -204,10 +204,10 @@ main {
             if(mods_on) { mods_on = FALSE; blips = 3; }
             else        { mods_on = TRUE;  blips = 1; }
         }
-        if(event_press(DPAD_UP)) blips = cls + 1;
+        if(event_press(DPAD_UP)) blips = wclass + 1;
     }
 
-    if(holding_second) cls = second_class; else cls = primary_class;
+    if(holding_second) wclass = second_class; else wclass = primary_class;
 
     if(blips > 0 && !combo_running(FEEDBACK)) combo_run(FEEDBACK);
 
@@ -237,7 +237,7 @@ main {
     /* ---- anti-recoil for the class in your hands ---- */
     if(mods_on && firing && (!ADS_ONLY || aiming)) {
         fire_ms = fire_ms + get_rtime();
-        idx = cls * PHASES;
+        idx = wclass * PHASES;
         if(fire_ms < PH_UNTIL[idx]) {
             arv = PH_V[idx];
             arh = PH_H[idx];
@@ -251,25 +251,25 @@ main {
             arv = PH_V[idx + 3];
             arh = PH_H[idx + 3];
         }
-        if(abs(get_val(STICK_RY)) < AR_RELEASE[cls]) set_val(STICK_RY, lim(get_val(STICK_RY) + arv));
-        if(arh != 0 && abs(get_val(STICK_RX)) < AR_RELEASE[cls]) set_val(STICK_RX, lim(get_val(STICK_RX) + arh));
+        if(abs(get_val(STICK_RY)) < AR_RELEASE[wclass]) set_val(STICK_RY, lim(get_val(STICK_RY) + arv));
+        if(arh != 0 && abs(get_val(STICK_RX)) < AR_RELEASE[wclass]) set_val(STICK_RX, lim(get_val(STICK_RX) + arh));
     } else {
         fire_ms = 0;
     }
 
     /* ---- rapid fire ---- */
-    if(mods_on && RF_ON[cls] && firing) {
-        rf_hold = RF_HOLD[cls];
-        rf_rest = RF_REST[cls];
+    if(mods_on && RF_ON[wclass] && firing) {
+        rf_hold = RF_HOLD[wclass];
+        rf_rest = RF_REST[wclass];
         combo_run(RAPID_FIRE);
     } else if(combo_running(RAPID_FIRE)) {
         combo_stop(RAPID_FIRE);
     }
 
     /* ---- sticky aim ---- */
-    if(mods_on && STICKY_ON[cls] && aiming) {
-        sticky_r = STICKY_R[cls];
-        sticky_ms = STICKY_MS[cls];
+    if(mods_on && STICKY_ON[wclass] && aiming) {
+        sticky_r = STICKY_R[wclass];
+        sticky_ms = STICKY_MS[wclass];
         combo_run(STICKY_AIM);
     } else if(combo_running(STICKY_AIM)) {
         combo_stop(STICKY_AIM);

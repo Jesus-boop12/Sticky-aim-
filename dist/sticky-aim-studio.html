@@ -2609,7 +2609,7 @@ function buildUniversalScript(classProfiles, options = {}) {
   body.push('int primary_class;');
   body.push('int second_class;');
   body.push('int holding_second;   // FALSE = primary in hand, TRUE = secondary');
-  body.push('int cls;');
+  body.push('int wclass;');
   body.push('int mods_on;');
   body.push('int fire_ms;');
   body.push('int idx;');
@@ -2677,10 +2677,10 @@ function buildUniversalScript(classProfiles, options = {}) {
   body.push('            if(mods_on) { mods_on = FALSE; blips = 3; }');
   body.push('            else        { mods_on = TRUE;  blips = 1; }');
   body.push('        }');
-  body.push('        if(event_press(DPAD_UP)) blips = cls + 1;');
+  body.push('        if(event_press(DPAD_UP)) blips = wclass + 1;');
   body.push('    }');
   body.push('');
-  body.push('    if(holding_second) cls = second_class; else cls = primary_class;');
+  body.push('    if(holding_second) wclass = second_class; else wclass = primary_class;');
   body.push('');
   body.push('    if(blips > 0 && !combo_running(FEEDBACK)) combo_run(FEEDBACK);');
   body.push('');
@@ -2710,7 +2710,7 @@ function buildUniversalScript(classProfiles, options = {}) {
   body.push('    /* ---- anti-recoil for the class in your hands ---- */');
   body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
   body.push('        fire_ms = fire_ms + get_rtime();');
-  body.push('        idx = cls * PHASES;');
+  body.push('        idx = wclass * PHASES;');
   body.push('        if(fire_ms < PH_UNTIL[idx]) {');
   body.push('            arv = PH_V[idx];');
   body.push('            arh = PH_H[idx];');
@@ -2724,17 +2724,17 @@ function buildUniversalScript(classProfiles, options = {}) {
   body.push('            arv = PH_V[idx + 3];');
   body.push('            arh = PH_H[idx + 3];');
   body.push('        }');
-  body.push('        if(abs(get_val(STICK_RY)) < AR_RELEASE[cls]) set_val(STICK_RY, lim(get_val(STICK_RY) + arv));');
-  body.push('        if(arh != 0 && abs(get_val(STICK_RX)) < AR_RELEASE[cls]) set_val(STICK_RX, lim(get_val(STICK_RX) + arh));');
+  body.push('        if(abs(get_val(STICK_RY)) < AR_RELEASE[wclass]) set_val(STICK_RY, lim(get_val(STICK_RY) + arv));');
+  body.push('        if(arh != 0 && abs(get_val(STICK_RX)) < AR_RELEASE[wclass]) set_val(STICK_RX, lim(get_val(STICK_RX) + arh));');
   body.push('    } else {');
   body.push('        fire_ms = 0;');
   body.push('    }');
   body.push('');
   if (anyRapid) {
     body.push('    /* ---- rapid fire ---- */');
-    body.push('    if(mods_on && RF_ON[cls] && firing) {');
-    body.push('        rf_hold = RF_HOLD[cls];');
-    body.push('        rf_rest = RF_REST[cls];');
+    body.push('    if(mods_on && RF_ON[wclass] && firing) {');
+    body.push('        rf_hold = RF_HOLD[wclass];');
+    body.push('        rf_rest = RF_REST[wclass];');
     body.push('        combo_run(RAPID_FIRE);');
     body.push('    } else if(combo_running(RAPID_FIRE)) {');
     body.push('        combo_stop(RAPID_FIRE);');
@@ -2743,9 +2743,9 @@ function buildUniversalScript(classProfiles, options = {}) {
   }
   if (anySticky) {
     body.push('    /* ---- sticky aim ---- */');
-    body.push(`    if(${stickyCondition(first.sticky.when).replace(/STICKY_ON\[slot\]/, 'STICKY_ON[cls]')}) {`);
-    body.push('        sticky_r = STICKY_R[cls];');
-    body.push('        sticky_ms = STICKY_MS[cls];');
+    body.push(`    if(${stickyCondition(first.sticky.when).replace(/STICKY_ON\[slot\]/, 'STICKY_ON[wclass]')}) {`);
+    body.push('        sticky_r = STICKY_R[wclass];');
+    body.push('        sticky_ms = STICKY_MS[wclass];');
     body.push('        combo_run(STICKY_AIM);');
     body.push('    } else if(combo_running(STICKY_AIM)) {');
     body.push('        combo_stop(STICKY_AIM);');

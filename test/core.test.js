@@ -646,8 +646,8 @@ test('the universal script follows the swap button and indexes by class', () => 
 
   assert.match(gpc, /define BTN_SWAP   = XB1_Y;/);
   assert.match(gpc, /if\(!get_val\(BTN_MOD\) && event_press\(BTN_SWAP\)\)/, 'a swap must flip the profile');
-  assert.match(gpc, /if\(holding_second\) cls = second_class; else cls = primary_class;/);
-  assert.match(gpc, /idx = cls \* PHASES;/);
+  assert.match(gpc, /if\(holding_second\) wclass = second_class; else wclass = primary_class;/);
+  assert.match(gpc, /idx = wclass \* PHASES;/);
   assert.ok(!gpc.includes('[slot]'), 'nothing may still index by weapon slot');
 
   assert.equal(gpc.split('{').length, gpc.split('}').length, 'unbalanced braces');
@@ -683,4 +683,17 @@ test('the boot classes come from the request', () => {
 test('a game with no roster cannot make a universal script', () => {
   assert.throws(() => buildClassProfiles('generic', {}), /no bundled roster/);
   assert.throws(() => buildUniversalScript([], {}), /No class profiles/);
+});
+
+test('every variable the script uses is declared before main', () => {
+  for (const gpc of [
+    buildUniversalScript(buildClassProfiles('warzone', { sensitivity: 6 }), { game: 'warzone' }),
+    generate('cod-mw3', 3).gpc
+  ]) {
+    const declared = new Set([...gpc.matchAll(/^int (\w+);/gm)].map((m) => m[1]));
+    const indexes = new Set([...gpc.matchAll(/\[(\w+)\]/g)].map((m) => m[1]).filter((x) => !/^\d+$/.test(x)));
+    for (const name of indexes) assert.ok(declared.has(name), `${name} indexes an array but is never declared`);
+    assert.equal(gpc.split('(').length, gpc.split(')').length, 'unbalanced parentheses');
+    assert.ok(!/\bcls\b/.test(gpc), 'cls sits too close to Zen\'s cls_oled family to use as a variable');
+  }
 });
