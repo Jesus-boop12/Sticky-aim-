@@ -30,7 +30,7 @@ Nothing else to configure. An `ANTHROPIC_API_KEY` unlocks the AI importers
 
 | Source | Needs a key | Notes |
 |---|---|---|
-| **Catalog** | no | Bundled starter stats for 10 games — CoD (BO6 / MW3 / Warzone), Apex, Fortnite, Battlefield 2042, Siege, Destiny 2, PUBG, Halo Infinite |
+| **Catalog** | no | Full rosters for 11 games — CoD (Black Ops 7, Black Ops 6, MWIII, Warzone), Apex, Fortnite, Battlefield 2042, Siege, Destiny 2, PUBG, Halo Infinite. Searchable, filterable by class |
 | **Describe it** | optional | Paste a wiki table, patch notes or your own words. With a key Claude reads it; without one a local regex parser has a go |
 | **Screenshot** | yes | Drop a gunsmith / loadout screen and Claude reads the stat bars off it |
 | **JSON** | no | Arrays, `{"weapons":[…]}`, or a single object. Field names are matched loosely — `fire_rate`, `rpm`, `rounds_per_minute` all land in the same place |
@@ -110,6 +110,23 @@ button puts the weapon back on auto.
 to test first (falls back to fixed range-testing notes without a key).
 
 ---
+
+### About the bundled rosters
+
+Two different things live in the catalog, and the difference matters:
+
+- **Names, classes and fire modes are the real rosters.** Black Ops 7's 28
+  launch weapons, Black Ops 6's 40, Modern Warfare III's 75 (its own guns plus
+  the MWII pool it shares), and Warzone's 143 — the three current arsenals
+  pooled, since that is what Warzone fields. Roughly 440 weapons in total.
+- **The numbers are not extracted from any game.** Some are community-style
+  estimates; the rest are derived from the weapon's class. Anything derived is
+  tagged `est` in the picker, carries a low confidence score, and says so on the
+  weapon itself.
+
+So pick your gun by name, then trim on a range — which is the loop the whole app
+is built around. A weapon you have measured yourself beats anything in here:
+edit its stats in the Tune tab, or import them.
 
 ## How the tuning works
 

@@ -67,7 +67,14 @@
       </div>
 
       <div id="sub-catalog">
-        <p>Bundled starting stats for the selected game. Community estimates — trim them once you have shot on the range.</p>
+        <p>The full roster for the selected game. Names and classes are real; the recoil and fire-rate numbers
+          are starting points — the ones marked <span class="est-tag">est</span> come from the weapon's class
+          rather than from measured stats. Trim either kind on the range.</p>
+        <div class="row" style="margin-bottom:10px">
+          <input id="catalog-search" placeholder="Search weapons…" style="flex:1;min-width:180px" autocomplete="off">
+          <select id="catalog-class" style="min-width:150px"></select>
+          <span class="hint" id="catalog-count"></span>
+        </div>
         <div class="catalog" id="catalog"></div>
       </div>
 

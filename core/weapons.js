@@ -20,7 +20,7 @@ const CATEGORY_ALIASES = {
   sniper: 'sniper', 'sniper rifle': 'sniper', bolt: 'sniper', 'bolt action': 'sniper',
   pistol: 'pistol', handgun: 'pistol', sidearm: 'pistol', revolver: 'pistol',
   shotgun: 'shotgun', 'shot gun': 'shotgun',
-  br: 'battle', 'battle rifle': 'battle'
+  battle: 'battle', br: 'battle', 'battle rifle': 'battle', 'tactical rifle': 'battle'
 };
 
 /** Header aliases accepted by the CSV/JSON importers. */
@@ -235,6 +235,9 @@ export function normalizeWeapon(raw = {}, { game = 'generic' } = {}) {
     overrides: normalizeOverrides(raw.overrides),
     notes: String(pick(raw, 'notes') ?? '').slice(0, 400),
     source: raw.source || 'manual',
+    // true when the recoil / fire rate came from the weapon's class rather than
+    // from measured numbers - the UI marks these and the tuner trusts them less
+    estimated: Boolean(raw.estimated),
     confidence: raw.confidence === undefined ? undefined : clamp(num(raw.confidence, 0.5), 0, 1)
   };
 

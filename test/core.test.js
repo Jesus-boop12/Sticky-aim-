@@ -481,3 +481,66 @@ test('a setting name cannot break out of the header comment', () => {
   const header = gpc.slice(0, gpc.indexOf('#pragma'));
   assert.equal(header.match(/\*\//g).length, 1);
 });
+
+/* ---------------- rosters ---------------- */
+
+test('every Call of Duty title ships a full roster', () => {
+  for (const [game, min] of [['cod-bo7', 25], ['cod-bo6', 35], ['cod-mw3', 70], ['warzone', 120]]) {
+    const list = catalogFor(game);
+    assert.ok(list.length >= min, `${game} has only ${list.length} weapons`);
+  }
+});
+
+test('rosters cover every weapon class and carry no duplicates', () => {
+  for (const game of ['cod-bo7', 'cod-bo6', 'cod-mw3']) {
+    const list = catalogFor(game);
+    const classes = new Set(list.map((w) => w.category));
+    for (const needed of ['ar', 'smg', 'lmg', 'sniper', 'pistol', 'shotgun', 'marksman']) {
+      assert.ok(classes.has(needed), `${game} has no ${needed}`);
+    }
+    assert.ok(!classes.has('other'), `${game} has an unclassified weapon`);
+    const names = list.map((w) => w.name.toLowerCase());
+    assert.equal(names.length, new Set(names).size, `${game} lists a weapon twice`);
+  }
+});
+
+test('Warzone pools the other Call of Duty rosters, de-duplicated', () => {
+  const warzone = catalogFor('warzone');
+  const names = warzone.map((w) => w.name.toLowerCase());
+  assert.equal(names.length, new Set(names).size, 'the pooled roster must not repeat a weapon');
+  for (const source of ['cod-bo7', 'cod-bo6', 'cod-mw3']) {
+    const sample = catalogFor(source)[0].name.toLowerCase();
+    assert.ok(names.includes(sample), `${sample} from ${source} is missing`);
+  }
+  assert.ok(warzone.every((w) => w.game === 'warzone'), 'pooled weapons must tune against the Warzone profile');
+});
+
+test('class-derived entries are marked, and measured ones are not', () => {
+  const roster = catalogFor('cod-bo7');
+  const estimated = roster.filter((w) => w.estimated);
+  assert.ok(estimated.length > 0);
+  for (const w of estimated) {
+    assert.match(w.notes, /class baselines, not measured/);
+    assert.ok(w.rpm > 0 && w.recoil.vertical > 0, 'an estimate still has to be usable');
+  }
+  const measured = catalogFor('cod-mw3').find((w) => w.name === 'MCW');
+  assert.equal(measured.estimated, false);
+  assert.ok(computeTuning(measured, {}).confidence > computeTuning(estimated[0], {}).confidence,
+    'a measured weapon must outrank a class estimate');
+});
+
+test('every roster weapon tunes and generates without special-casing', () => {
+  for (const game of ['cod-bo7', 'cod-bo6', 'cod-mw3', 'warzone']) {
+    for (const weapon of catalogFor(game)) {
+      const tuning = computeTuning(weapon, {});
+      assert.ok(tuning.antiRecoil.vertical >= 0 && tuning.antiRecoil.vertical <= 100, `${weapon.name}: vertical out of range`);
+      assert.equal(tuning.antiRecoil.phases.length, PHASE_COUNT, `${weapon.name}: bad phase table`);
+      for (let i = 1; i < PHASE_COUNT; i++) {
+        assert.ok(tuning.antiRecoil.phases[i].untilMs > tuning.antiRecoil.phases[i - 1].untilMs,
+          `${weapon.name}: phase boundaries out of order`);
+      }
+      const gpc = buildGpcScript([{ weapon, tuning }]);
+      assert.ok(!/undefined|NaN/.test(gpc), `${weapon.name}: placeholder leaked into the script`);
+    }
+  }
+});

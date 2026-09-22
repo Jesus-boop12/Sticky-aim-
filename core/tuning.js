@@ -434,7 +434,8 @@ export function computeTuning(weapon, rawProfile = {}) {
 
 function estimateConfidence(weapon) {
   let score = 0.35;
-  if (weapon.source === 'preset') score += 0.2;
+  if (weapon.source === 'preset' && !weapon.estimated) score += 0.2;
+  if (weapon.estimated) score -= 0.15;
   if (weapon.recoil.pattern) score += 0.25;
   if (weapon.attachments.length) score += 0.05;
   if (weapon.warnings?.length) score -= 0.1 * weapon.warnings.length;

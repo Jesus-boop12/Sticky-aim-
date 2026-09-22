@@ -192,6 +192,16 @@ pre.script {
 .loadguide ol li { margin-bottom: 7px; }
 .loadguide ol b { color: var(--text-primary); }
 
+/* ---------- roster markers ---------- */
+.est-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 5px; border-radius: 4px;
+  font: 600 9px/1.5 var(--mono); letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  vertical-align: 1px;
+}
+.catalog { max-height: 460px; }
+
 
 /* ---------- standalone build ---------- */
 html, body { background: var(--surface-0); }
@@ -267,7 +277,14 @@ html, body { background: var(--surface-0); }
       </div>
 
       <div id="sub-catalog">
-        <p>Bundled starting stats for the selected game. Community estimates — trim them once you have shot on the range.</p>
+        <p>The full roster for the selected game. Names and classes are real; the recoil and fire-rate numbers
+          are starting points — the ones marked <span class="est-tag">est</span> come from the weapon's class
+          rather than from measured stats. Trim either kind on the range.</p>
+        <div class="row" style="margin-bottom:10px">
+          <input id="catalog-search" placeholder="Search weapons…" style="flex:1;min-width:180px" autocomplete="off">
+          <select id="catalog-class" style="min-width:150px"></select>
+          <span class="hint" id="catalog-count"></span>
+        </div>
         <div class="catalog" id="catalog"></div>
       </div>
 
@@ -520,6 +537,21 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
 
 const GAMES = [
   {
+    id: 'cod-bo7',
+    name: 'Call of Duty: Black Ops 7',
+    family: 'cod',
+    referenceFov: 80,
+    referenceSens: 6,
+    sensExponent: 1.0,
+    referenceAds: 0.9,
+    responseCurves: { standard: 1.18, linear: 1.0, dynamic: 1.12 },
+    recoilGain: 0.60,
+    kickDelayMs: 70,
+    semiFireCapRpm: 400,
+    aimAssist: { type: 'rotational', radius: 7, periodMs: 90 },
+    notes: 'Rotational aim assist, as with the rest of the Black Ops line.'
+  },
+  {
     id: 'cod-bo6',
     name: 'Call of Duty: Black Ops 6',
     family: 'cod',
@@ -735,7 +767,7 @@ const CATEGORY_ALIASES = {
   sniper: 'sniper', 'sniper rifle': 'sniper', bolt: 'sniper', 'bolt action': 'sniper',
   pistol: 'pistol', handgun: 'pistol', sidearm: 'pistol', revolver: 'pistol',
   shotgun: 'shotgun', 'shot gun': 'shotgun',
-  br: 'battle', 'battle rifle': 'battle'
+  battle: 'battle', br: 'battle', 'battle rifle': 'battle', 'tactical rifle': 'battle'
 };
 
 /** Header aliases accepted by the CSV/JSON importers. */
@@ -950,6 +982,9 @@ function normalizeWeapon(raw = {}, { game = 'generic' } = {}) {
     overrides: normalizeOverrides(raw.overrides),
     notes: String(pick(raw, 'notes') ?? '').slice(0, 400),
     source: raw.source || 'manual',
+    // true when the recoil / fire rate came from the weapon's class rather than
+    // from measured numbers - the UI marks these and the tuner trusts them less
+    estimated: Boolean(raw.estimated),
     confidence: raw.confidence === undefined ? undefined : clamp(num(raw.confidence, 0.5), 0, 1)
   };
 
@@ -1069,141 +1104,271 @@ function importFromTextHeuristic(text, { game = 'generic' } = {}) {
 
 /* ---- core/catalog.js ---- */
 /**
- * Bundled starter catalog.
+ * Weapon rosters.
  *
- * These are community-style estimates so you have something to generate from on
- * a fresh install - they are NOT extracted from any game's files and they drift
- * every balance patch. Treat a preset as a starting point, then trim the numbers
- * in the tuner (or import your own data) once you have seen it on the range.
+ * Two different kinds of data live here, and the difference matters:
  *
- * Row format: [name, category, fireMode, rpm, vertical, horizontal, drift, magSize, adsMs]
- *   vertical / horizontal : 0-100 normalised recoil
- *   drift                 : -1 pulls left, 0 straight, 1 pulls right
+ *   - **Names, classes and fire modes** are the real rosters. They are what
+ *     you pick from, and they are what makes a weapon findable.
+ *   - **Recoil and fire-rate numbers** are NOT extracted from any game. A
+ *     handful are community-style estimates; the rest are derived from the
+ *     weapon's class. Every derived entry is marked `estimated`, carries a
+ *     low confidence score, and says so on the weapon itself.
+ *
+ * So: pick your gun by name, then trim the numbers on a range. The app is
+ * built around that loop - the script header tells you which way to trim.
+ *
+ * Row format: [name, category] or [name, category, { rpm, v, h, drift, fire, mag, ads }]
+ * A row with no third element is a roster entry with class-derived stats.
  */
 
 
-const ROWS = {
-  'cod-bo6': [
-    ['XM4', 'ar', 'auto', 703, 40, 12, 0.2, 30, 250],
-    ['AK-74', 'ar', 'auto', 600, 52, 16, -0.3, 30, 270],
-    ['C9', 'smg', 'auto', 845, 34, 14, 0.1, 32, 200],
-    ['Jackal PDW', 'smg', 'auto', 909, 38, 15, 0.3, 30, 195],
-    ['PU-21', 'lmg', 'auto', 750, 58, 18, -0.2, 75, 400],
-    ['SWAT 5.56', 'battle', 'burst', 800, 44, 10, 0.1, 30, 260],
-    ['DM-10', 'marksman', 'semi', 300, 30, 8, 0, 20, 300],
-    ['LW3A1 Frostline', 'sniper', 'semi', 40, 72, 6, 0, 5, 560]
-  ],
-  'cod-mw3': [
-    ['MCW', 'ar', 'auto', 750, 38, 11, 0.1, 30, 255],
-    ['SVA 545', 'ar', 'auto', 705, 45, 13, -0.2, 30, 265],
-    ['Holger 556', 'ar', 'auto', 705, 42, 12, 0.2, 30, 270],
-    ['Striker', 'smg', 'auto', 857, 33, 15, 0.3, 32, 205],
-    ['Rival-9', 'smg', 'auto', 882, 30, 13, 0.1, 30, 195],
-    ['Holger 26', 'lmg', 'auto', 698, 55, 17, -0.2, 60, 380],
-    ['MTZ Interceptor', 'marksman', 'semi', 320, 34, 9, 0, 10, 310],
-    ['KATT-AMR', 'sniper', 'semi', 38, 78, 7, 0, 7, 600]
-  ],
-  warzone: [
-    ['Superi 46', 'smg', 'auto', 900, 36, 16, 0.2, 32, 200],
-    ['BAL-27', 'ar', 'auto', 720, 44, 12, 0.1, 30, 260],
-    ['Kar98k', 'sniper', 'semi', 45, 70, 6, 0, 5, 520],
-    ['Pulemyot 762', 'lmg', 'auto', 620, 62, 19, -0.3, 100, 430],
-    ['TAQ Evolvere', 'lmg', 'auto', 705, 57, 16, 0.2, 75, 410],
-    ['WSP Swarm', 'smg', 'auto', 1200, 42, 20, 0.4, 50, 190]
-  ],
+/** Class baselines used for any weapon without measured numbers of its own. */
+const CLASS_DEFAULTS = {
+  ar:       { rpm: 680, v: 44, h: 13, mag: 30, ads: 260, fire: 'auto' },
+  smg:      { rpm: 850, v: 34, h: 15, mag: 32, ads: 200, fire: 'auto' },
+  lmg:      { rpm: 640, v: 58, h: 18, mag: 75, ads: 400, fire: 'auto' },
+  marksman: { rpm: 320, v: 33, h: 9,  mag: 15, ads: 310, fire: 'semi' },
+  sniper:   { rpm: 45,  v: 72, h: 7,  mag: 6,  ads: 540, fire: 'semi' },
+  shotgun:  { rpm: 90,  v: 52, h: 10, mag: 6,  ads: 250, fire: 'semi' },
+  pistol:   { rpm: 380, v: 26, h: 9,  mag: 15, ads: 190, fire: 'semi' },
+  battle:   { rpm: 450, v: 48, h: 11, mag: 20, ads: 290, fire: 'semi' }
+};
+
+/* ------------------------------------------------------------------ *
+ * Call of Duty: Black Ops 7 - launch roster                           *
+ * ------------------------------------------------------------------ */
+const BO7 = [
+  ['M15 MOD 0', 'ar'], ['AK-27', 'ar'], ['DS20 Mirage', 'ar'], ['X9 Maverick', 'ar'],
+  ['Peacekeeper MK1', 'ar'], ['MXR-17', 'ar'], ['Maddox RFB', 'ar'],
+  ['Ryden 45K', 'smg'], ['Dravec 45', 'smg'], ['Razor 9mm', 'smg'], ['Carbon 57', 'smg'],
+  ['MPC-25', 'smg'], ['RK-9', 'smg'], ['Kogot-7', 'smg'],
+  ['MK.78', 'lmg'], ['XM325', 'lmg'],
+  ['M8A1', 'marksman', { fire: 'burst', burst: 3, rpm: 480, v: 30, h: 8 }],
+  ['Warden 308', 'marksman'], ['M34 Novaline', 'marksman'],
+  ['NX Ravager', 'sniper'], ['VS Recon', 'sniper'], ['XR-3 Ion', 'sniper'],
+  ['M10 Breacher', 'shotgun'], ['Echo 12', 'shotgun', { fire: 'auto', rpm: 200 }], ['Akita', 'shotgun'],
+  ['Jager 45', 'pistol'], ['Coda 9', 'pistol'], ['Velox 5.7', 'pistol']
+];
+
+/* ------------------------------------------------------------------ *
+ * Call of Duty: Black Ops 6                                           *
+ * ------------------------------------------------------------------ */
+const BO6 = [
+  ['XM4', 'ar', { rpm: 703, v: 40, h: 12, drift: 0.2, mag: 30, ads: 250 }],
+  ['AK-74', 'ar', { rpm: 600, v: 52, h: 16, drift: -0.3, mag: 30, ads: 270 }],
+  ['AMES 85', 'ar'], ['GPR 91', 'ar'], ['Model L', 'ar'], ['Goblin MK2', 'ar', { fire: 'semi', rpm: 400 }],
+  ['AS VAL', 'ar', { rpm: 900, v: 38, h: 14 }], ['Krig C', 'ar'], ['Cypher 091', 'ar'], ['AEK-973', 'ar'],
+  ['C9', 'smg', { rpm: 845, v: 34, h: 14, drift: 0.1, mag: 32, ads: 200 }],
+  ['KSV', 'smg'], ['Tanto .22', 'smg'], ['PP-919', 'smg'],
+  ['Jackal PDW', 'smg', { rpm: 909, v: 38, h: 15, drift: 0.3, mag: 30, ads: 195 }],
+  ['Saug', 'smg'], ['Kompakt 92', 'smg'], ['LC10', 'smg'], ['Feng 82', 'smg'],
+  ['PU-21', 'lmg', { rpm: 750, v: 58, h: 18, drift: -0.2, mag: 75, ads: 400 }],
+  ['XMG', 'lmg'], ['GPMG-7', 'lmg'], ['Feng Light', 'lmg'],
+  ['SWAT 5.56', 'battle', { fire: 'burst', burst: 5, rpm: 800, v: 44, h: 10, drift: 0.1, mag: 30, ads: 260 }],
+  ['AEK-973 Battle', 'battle'], ['Tsarkov 7.62', 'battle'],
+  ['DM-10', 'marksman', { rpm: 300, v: 30, h: 8, mag: 20, ads: 300 }],
+  ['SVD', 'marksman'], ['AEK Marksman', 'marksman'],
+  ['LR 7.62', 'sniper'], ['LW3A1 Frostline', 'sniper', { rpm: 40, v: 72, h: 6, mag: 5, ads: 560 }],
+  ['SVD-M', 'sniper'], ['AMR Mod 4', 'sniper'],
+  ['Marine SP', 'shotgun'], ['ASG-89', 'shotgun', { fire: 'auto', rpm: 180 }], ['Maelstrom', 'shotgun'],
+  ['GS45', 'pistol'], ['9mm PM', 'pistol'], ['Grekhova', 'pistol'], ['Stryder .22', 'pistol']
+];
+
+/* ------------------------------------------------------------------ *
+ * Modern Warfare III - its own roster plus the MWII guns it pools      *
+ * ------------------------------------------------------------------ */
+const MW3 = [
+  ['MCW', 'ar', { rpm: 750, v: 38, h: 11, drift: 0.1, mag: 30, ads: 255 }],
+  ['SVA 545', 'ar', { rpm: 705, v: 45, h: 13, drift: -0.2, mag: 30, ads: 265 }],
+  ['Holger 556', 'ar', { rpm: 705, v: 42, h: 12, drift: 0.2, mag: 30, ads: 270 }],
+  ['MTZ-556', 'ar'], ['DG-56', 'ar', { fire: 'burst', burst: 3, rpm: 700 }], ['FR 5.56', 'ar', { fire: 'burst', burst: 3 }],
+  ['RAM-7', 'ar'], ['BAS-B', 'battle'], ['Sidewinder', 'ar', { fire: 'semi', rpm: 420 }],
+  ['M13C', 'ar'], ['TAQ-56', 'ar'], ['STB 556', 'ar'], ['Kastov 762', 'ar', { rpm: 620, v: 56, h: 18, drift: -0.3 }],
+  ['M4', 'ar'], ['Chimera', 'ar'], ['ISO Hemlock', 'ar'], ['TR-76 Geist', 'ar'], ['Lachmann-556', 'ar'],
+  ['Striker', 'smg', { rpm: 857, v: 33, h: 15, drift: 0.3, mag: 32, ads: 205 }],
+  ['Rival-9', 'smg', { rpm: 882, v: 30, h: 13, drift: 0.1, mag: 30, ads: 195 }],
+  ['WSP Swarm', 'smg', { rpm: 1200, v: 42, h: 20, drift: 0.4, mag: 50, ads: 190 }],
+  ['AMR9', 'smg'], ['Striker 9', 'smg'], ['HRM-9', 'smg'], ['WSP-9', 'smg'], ['FJX Horus', 'smg'],
+  ['Lachmann Sub', 'smg'], ['Fennec 45', 'smg', { rpm: 1100, v: 36, h: 18 }], ['Vaznev-9K', 'smg'],
+  ['BAS-P', 'smg'], ['MX9', 'smg'], ['Minibak', 'smg'],
+  ['Holger 26', 'lmg', { rpm: 698, v: 55, h: 17, drift: -0.2, mag: 60, ads: 380 }],
+  ['Pulemyot 762', 'lmg', { rpm: 620, v: 62, h: 19, drift: -0.3, mag: 100, ads: 430 }],
+  ['TAQ Eradicator', 'lmg'], ['DG-58 LSW', 'lmg'], ['Bruen Mk9', 'lmg'], ['Sakin MG38', 'lmg'],
+  ['RAAL MG', 'lmg'], ['556 Icarus', 'lmg'], ['RPK', 'lmg'],
+  ['MTZ Interceptor', 'marksman', { rpm: 320, v: 34, h: 9, mag: 10, ads: 310 }],
+  ['KVD Enforcer', 'marksman'], ['DM56', 'marksman'], ['SP-R 208', 'marksman'], ['EBR-14', 'marksman'],
+  ['Lockwood MK2', 'marksman'], ['TAQ-M', 'marksman'], ['SA-B 50', 'marksman'],
+  ['KATT-AMR', 'sniper', { rpm: 38, v: 78, h: 7, mag: 7, ads: 600 }],
+  ['Longbow', 'sniper'], ['XRK Stalker', 'sniper'], ['MORS', 'sniper'], ['FJX Imperium', 'sniper'],
+  ['Signal 50', 'sniper', { fire: 'semi', rpm: 90 }], ['LA-B 330', 'sniper'], ['SP-X 80', 'sniper'],
+  ['Victus XMR', 'sniper'], ['Carrack .300', 'sniper'],
+  ['Lockwood 680', 'shotgun'], ['Haymaker', 'shotgun', { fire: 'auto', rpm: 300 }], ['Riveter', 'shotgun'],
+  ['Bryson 800', 'shotgun'], ['Bryson 890', 'shotgun'], ['Expedite 12', 'shotgun'], ['KV Broadside', 'shotgun'],
+  ['COR-45', 'pistol'], ['Renetti', 'pistol'], ['TYR', 'pistol'], ['WSP Stinger', 'pistol'],
+  ['.50 GS', 'pistol', { rpm: 300, v: 60, h: 10 }], ['X12', 'pistol'], ['X13 Auto', 'pistol', { fire: 'auto', rpm: 900 }],
+  ['Basilisk', 'pistol'], ['FTAC Siege', 'pistol', { fire: 'auto', rpm: 800 }]
+];
+
+const ROSTERS = {
+  'cod-bo7': BO7,
+  'cod-bo6': BO6,
+  'cod-mw3': MW3,
+  // Warzone pools the current Call of Duty arsenals, so its catalog is theirs,
+  // re-tuned against the Warzone game profile.
+  warzone: [...BO7, ...BO6, ...MW3],
+
   apex: [
-    ['R-301 Carbine', 'ar', 'auto', 810, 34, 12, 0.2, 28, 250],
-    ['Flatline', 'ar', 'auto', 600, 52, 20, -0.4, 30, 280],
-    ['R-99', 'smg', 'auto', 1080, 40, 18, 0.3, 27, 210],
-    ['Volt SMG', 'smg', 'auto', 720, 30, 12, 0.2, 26, 215],
-    ['Spitfire', 'lmg', 'auto', 540, 46, 14, -0.2, 35, 380],
-    ['G7 Scout', 'marksman', 'semi', 240, 32, 8, 0, 20, 300],
-    ['Wingman', 'pistol', 'semi', 156, 48, 10, 0, 6, 220]
+    ['R-301 Carbine', 'ar', { rpm: 810, v: 34, h: 12, drift: 0.2, mag: 28, ads: 250 }],
+    ['Flatline', 'ar', { rpm: 600, v: 52, h: 20, drift: -0.4, mag: 30, ads: 280 }],
+    ['Havoc Rifle', 'ar'], ['Nemesis', 'ar', { fire: 'burst', burst: 4 }], ['Hemlok', 'ar', { fire: 'burst', burst: 3 }],
+    ['R-99', 'smg', { rpm: 1080, v: 40, h: 18, drift: 0.3, mag: 27, ads: 210 }],
+    ['Volt SMG', 'smg', { rpm: 720, v: 30, h: 12, drift: 0.2, mag: 26, ads: 215 }],
+    ['Alternator', 'smg'], ['Prowler', 'smg', { fire: 'burst', burst: 5 }], ['CAR SMG', 'smg'],
+    ['Spitfire', 'lmg', { rpm: 540, v: 46, h: 14, drift: -0.2, mag: 35, ads: 380 }],
+    ['Devotion', 'lmg'], ['Rampage', 'lmg'], ['L-STAR', 'lmg'],
+    ['G7 Scout', 'marksman', { rpm: 240, v: 32, h: 8, mag: 20, ads: 300 }],
+    ['Triple Take', 'marksman'], ['30-30 Repeater', 'marksman'],
+    ['Longbow DMR', 'sniper'], ['Charge Rifle', 'sniper'], ['Sentinel', 'sniper'], ['Kraber', 'sniper'],
+    ['EVA-8 Auto', 'shotgun', { fire: 'auto', rpm: 130 }], ['Mastiff', 'shotgun'], ['Peacekeeper', 'shotgun'], ['Mozambique', 'shotgun'],
+    ['Wingman', 'pistol', { rpm: 156, v: 48, h: 10, mag: 6, ads: 220 }], ['P2020', 'pistol'], ['RE-45', 'pistol', { fire: 'auto', rpm: 720 }]
   ],
+
   fortnite: [
-    ['Assault Rifle', 'ar', 'auto', 400, 30, 14, 0, 30, 280],
-    ['Striker AR', 'ar', 'auto', 420, 28, 12, 0.1, 30, 270],
-    ['Ranger Shotgun', 'shotgun', 'semi', 90, 50, 10, 0, 6, 250],
-    ['SMG', 'smg', 'auto', 720, 34, 18, 0.2, 30, 200],
-    ['Hammer Pump', 'shotgun', 'semi', 60, 56, 8, 0, 5, 260],
-    ['Hunting Rifle', 'sniper', 'semi', 60, 62, 6, 0, 1, 480]
+    ['Assault Rifle', 'ar', { rpm: 400, v: 30, h: 14, mag: 30, ads: 280 }],
+    ['Striker AR', 'ar', { rpm: 420, v: 28, h: 12, drift: 0.1, mag: 30, ads: 270 }],
+    ['Hammer AR', 'ar'], ['Nemesis AR', 'ar'], ['Warforged AR', 'ar'],
+    ['SMG', 'smg', { rpm: 720, v: 34, h: 18, drift: 0.2, mag: 30, ads: 200 }],
+    ['Stinger SMG', 'smg'], ['Thunder Burst SMG', 'smg', { fire: 'burst', burst: 3 }],
+    ['Ranger Shotgun', 'shotgun', { rpm: 90, v: 50, h: 10, mag: 6, ads: 250 }],
+    ['Hammer Pump', 'shotgun', { rpm: 60, v: 56, h: 8, mag: 5, ads: 260 }],
+    ['Frenzy Auto Shotgun', 'shotgun', { fire: 'auto', rpm: 160 }],
+    ['Hunting Rifle', 'sniper', { rpm: 60, v: 62, h: 6, mag: 1, ads: 480 }],
+    ['Heavy Sniper', 'sniper'], ['Reaper Sniper', 'sniper'],
+    ['Ranger Pistol', 'pistol'], ['Hand Cannon', 'pistol']
   ],
+
   bf2042: [
-    ['AK-24', 'ar', 'auto', 600, 46, 16, -0.2, 30, 260],
-    ['M5A3', 'ar', 'auto', 700, 42, 14, 0.2, 30, 250],
-    ['PP-29', 'smg', 'auto', 750, 36, 16, 0.3, 55, 210],
-    ['LCMG', 'lmg', 'auto', 550, 60, 20, -0.3, 100, 420],
-    ['DM7', 'marksman', 'semi', 300, 36, 10, 0, 20, 320],
-    ['SWS-10', 'sniper', 'semi', 50, 74, 8, 0, 5, 540]
+    ['AK-24', 'ar', { rpm: 600, v: 46, h: 16, drift: -0.2, mag: 30, ads: 260 }],
+    ['M5A3', 'ar', { rpm: 700, v: 42, h: 14, drift: 0.2, mag: 30, ads: 250 }],
+    ['AM40', 'ar'], ['AEK-971', 'ar'], ['SCZ-3', 'ar'], ['AC-42', 'ar'], ['RM68', 'ar'],
+    ['PP-29', 'smg', { rpm: 750, v: 36, h: 16, drift: 0.3, mag: 55, ads: 210 }],
+    ['PBX-45', 'smg'], ['MP9', 'smg'], ['K30', 'smg'], ['AKS-74U', 'smg'],
+    ['LCMG', 'lmg', { rpm: 550, v: 60, h: 20, drift: -0.3, mag: 100, ads: 420 }],
+    ['PKP-BP', 'lmg'], ['Avancys', 'lmg'],
+    ['DM7', 'marksman', { rpm: 300, v: 36, h: 10, mag: 20, ads: 320 }], ['SVK', 'marksman'], ['VHX-D3', 'marksman'],
+    ['SWS-10', 'sniper', { rpm: 50, v: 74, h: 8, mag: 5, ads: 540 }], ['DXR-1', 'sniper'], ['NTW-50', 'sniper'],
+    ['MCS-880', 'shotgun'], ['12M Auto', 'shotgun', { fire: 'auto', rpm: 200 }],
+    ['MP28', 'smg'], ['G57', 'pistol']
   ],
+
   r6siege: [
-    ['R4-C', 'ar', 'auto', 860, 48, 14, 0.2, 30, 200],
-    ['AK-12', 'ar', 'auto', 850, 52, 16, -0.2, 30, 210],
-    ['MP5', 'smg', 'auto', 800, 34, 12, 0.1, 30, 190],
-    ['Vector .45 ACP', 'smg', 'auto', 1200, 30, 15, 0.2, 25, 185],
-    ['M249', 'lmg', 'auto', 650, 58, 18, -0.3, 100, 380],
-    ['Deagle', 'pistol', 'semi', 300, 60, 10, 0, 7, 200]
+    ['R4-C', 'ar', { rpm: 860, v: 48, h: 14, drift: 0.2, mag: 30, ads: 200 }],
+    ['AK-12', 'ar', { rpm: 850, v: 52, h: 16, drift: -0.2, mag: 30, ads: 210 }],
+    ['416-C Carbine', 'ar'], ['C8-SFW', 'ar'], ['AR33', 'ar'], ['F2', 'ar'], ['552 Commando', 'ar'], ['AUG A2', 'ar'],
+    ['MP5', 'smg', { rpm: 800, v: 34, h: 12, drift: 0.1, mag: 30, ads: 190 }],
+    ['Vector .45 ACP', 'smg', { rpm: 1200, v: 30, h: 15, drift: 0.2, mag: 25, ads: 185 }],
+    ['MP7', 'smg'], ['P90', 'smg'], ['UMP45', 'smg'], ['Scorpion EVO 3 A1', 'smg'],
+    ['M249', 'lmg', { rpm: 650, v: 58, h: 18, drift: -0.3, mag: 100, ads: 380 }], ['T-95 LSW', 'lmg'], ['ALDA 5.56', 'lmg'],
+    ['OTs-03', 'marksman'], ['CAMRS', 'marksman'], ['SR-25', 'marksman'],
+    ['SUPER 90', 'shotgun'], ['M590A1', 'shotgun'], ['SPAS-12', 'shotgun'],
+    ['Deagle', 'pistol', { rpm: 300, v: 60, h: 10, mag: 7, ads: 200 }], ['P226 MK 25', 'pistol'], ['5.7 USG', 'pistol']
   ],
+
   destiny2: [
-    ['Gnawing Hunger', 'ar', 'auto', 600, 38, 14, 0.3, 46, 240],
-    ['Ammit AR2', 'ar', 'auto', 720, 34, 12, -0.2, 36, 230],
-    ['The Messenger', 'battle', 'semi', 340, 40, 10, 0.1, 15, 260],
-    ['Riptide', 'shotgun', 'semi', 140, 48, 10, 0, 6, 240],
-    ['Funnelweb', 'smg', 'auto', 900, 30, 14, 0.2, 40, 200],
-    ['Izanagi’s Burden', 'sniper', 'semi', 72, 66, 6, 0, 4, 500]
+    ['Gnawing Hunger', 'ar', { rpm: 600, v: 38, h: 14, drift: 0.3, mag: 46, ads: 240 }],
+    ['Ammit AR2', 'ar', { rpm: 720, v: 34, h: 12, drift: -0.2, mag: 36, ads: 230 }],
+    ['Sweet Business', 'ar'], ['Monte Carlo', 'ar'],
+    ['The Messenger', 'battle', { fire: 'semi', rpm: 340, v: 40, h: 10, mag: 15, ads: 260 }],
+    ['Igneous Hammer', 'battle'], ['Austringer', 'battle'],
+    ['Funnelweb', 'smg', { rpm: 900, v: 30, h: 14, drift: 0.2, mag: 40, ads: 200 }],
+    ['Recluse', 'smg'], ['Calus Mini-Tool', 'smg'],
+    ['Riptide', 'shotgun', { rpm: 140, v: 48, h: 10, mag: 6, ads: 240 }], ['Matador 64', 'shotgun'],
+    ['Izanagi’s Burden', 'sniper', { rpm: 72, v: 66, h: 6, mag: 4, ads: 500 }], ['Cloudstrike', 'sniper'],
+    ['Thunderlord', 'lmg'], ['Xenophage', 'lmg']
   ],
+
   pubg: [
-    ['M416', 'ar', 'auto', 700, 52, 18, 0.1, 30, 260],
-    ['Beryl M762', 'ar', 'auto', 700, 68, 24, -0.3, 30, 270],
-    ['AKM', 'ar', 'auto', 600, 64, 22, -0.2, 30, 280],
-    ['UMP45', 'smg', 'auto', 600, 40, 16, 0.2, 25, 210],
-    ['DP-28', 'lmg', 'auto', 550, 58, 20, -0.2, 47, 420],
-    ['Mini 14', 'marksman', 'semi', 400, 36, 10, 0, 20, 300]
+    ['M416', 'ar', { rpm: 700, v: 52, h: 18, drift: 0.1, mag: 30, ads: 260 }],
+    ['Beryl M762', 'ar', { rpm: 700, v: 68, h: 24, drift: -0.3, mag: 30, ads: 270 }],
+    ['AKM', 'ar', { rpm: 600, v: 64, h: 22, drift: -0.2, mag: 30, ads: 280 }],
+    ['SCAR-L', 'ar'], ['G36C', 'ar'], ['QBZ95', 'ar'], ['AUG A3', 'ar'], ['ACE32', 'ar'],
+    ['UMP45', 'smg', { rpm: 600, v: 40, h: 16, drift: 0.2, mag: 25, ads: 210 }],
+    ['Vector', 'smg'], ['MP5K', 'smg'], ['PP-19 Bizon', 'smg'], ['Tommy Gun', 'smg'],
+    ['DP-28', 'lmg', { rpm: 550, v: 58, h: 20, drift: -0.2, mag: 47, ads: 420 }], ['M249', 'lmg'], ['MG3', 'lmg'],
+    ['Mini 14', 'marksman', { rpm: 400, v: 36, h: 10, mag: 20, ads: 300 }], ['SKS', 'marksman'],
+    ['SLR', 'marksman'], ['QBU', 'marksman'], ['Dragunov', 'marksman'],
+    ['Kar98k', 'sniper'], ['M24', 'sniper'], ['AWM', 'sniper'], ['Win94', 'sniper'],
+    ['S12K', 'shotgun', { fire: 'semi', rpm: 200 }], ['S686', 'shotgun'], ['S1897', 'shotgun'],
+    ['P18C', 'pistol', { fire: 'auto', rpm: 1100 }], ['P92', 'pistol'], ['R1895', 'pistol']
   ],
+
   'halo-infinite': [
-    ['MA40 AR', 'ar', 'auto', 360, 26, 10, 0.1, 32, 240],
-    ['BR75', 'battle', 'burst', 400, 30, 8, 0, 36, 260],
-    ['Sidekick', 'pistol', 'semi', 420, 22, 8, 0, 12, 200],
-    ['Commando', 'ar', 'auto', 400, 40, 14, 0.2, 30, 250],
-    ['Sniper Rifle S2 AM', 'sniper', 'semi', 60, 60, 6, 0, 4, 500]
+    ['MA40 AR', 'ar', { rpm: 360, v: 26, h: 10, drift: 0.1, mag: 32, ads: 240 }],
+    ['Commando', 'ar', { rpm: 400, v: 40, h: 14, drift: 0.2, mag: 30, ads: 250 }],
+    ['BR75', 'battle', { fire: 'burst', burst: 3, rpm: 400, v: 30, h: 8, mag: 36, ads: 260 }],
+    ['VK78 Commando', 'battle'],
+    ['Sidekick', 'pistol', { rpm: 420, v: 22, h: 8, mag: 12, ads: 200 }], ['Mangler', 'pistol'], ['Plasma Pistol', 'pistol'],
+    ['MK50 Sidekick', 'pistol'],
+    ['Pulse Carbine', 'smg'], ['Needler', 'smg'], ['Heatwave', 'shotgun'], ['Bulldog', 'shotgun'],
+    ['Sniper Rifle S2 AM', 'sniper', { rpm: 60, v: 60, h: 6, mag: 4, ads: 500 }],
+    ['Stalker Rifle', 'marksman'], ['Shock Rifle', 'marksman']
   ]
 };
 
 const CACHE = new Map();
 
+function buildWeapon(row, gameId) {
+  const [name, category, stats] = row;
+  const base = CLASS_DEFAULTS[category] || CLASS_DEFAULTS.ar;
+  const s = stats || {};
+  const estimated = !stats;
+
+  return normalizeWeapon(
+    {
+      name,
+      category,
+      fireMode: s.fire || base.fire,
+      burstCount: s.burst || ((s.fire || base.fire) === 'burst' ? 3 : 0),
+      rpm: s.rpm ?? base.rpm,
+      vertical: s.v ?? base.v,
+      horizontal: s.h ?? base.h,
+      drift: s.drift ?? 0,
+      magSize: s.mag ?? base.mag,
+      adsTimeMs: s.ads ?? base.ads,
+      source: 'preset',
+      estimated,
+      confidence: estimated ? 0.25 : 0.6,
+      notes: estimated
+        ? 'Roster entry - the recoil and fire rate are class baselines, not measured. Trim on the range.'
+        : 'Community estimate - verify on the range and trim.'
+    },
+    { game: gameId }
+  );
+}
+
 function catalogFor(gameId) {
   if (CACHE.has(gameId)) return CACHE.get(gameId);
-  const rows = ROWS[gameId] || [];
-  const weapons = rows.map(([name, category, fireMode, rpm, vertical, horizontal, drift, magSize, adsTimeMs]) =>
-    normalizeWeapon(
-      {
-        name,
-        category,
-        fireMode,
-        burstCount: fireMode === 'burst' ? 3 : 0,
-        rpm,
-        vertical,
-        horizontal,
-        drift,
-        magSize,
-        adsTimeMs,
-        source: 'preset',
-        confidence: 0.6,
-        notes: 'Community estimate - verify on the range and trim.'
-      },
-      { game: gameId }
-    )
-  );
+  const rows = ROSTERS[gameId] || [];
+  // Warzone pools three rosters, so the same gun can arrive twice.
+  const seen = new Set();
+  const weapons = [];
+  for (const row of rows) {
+    const key = `${row[0].toLowerCase()}|${row[1]}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    weapons.push(buildWeapon(row, gameId));
+  }
   CACHE.set(gameId, weapons);
   return weapons;
 }
 
 function fullCatalog() {
-  return Object.fromEntries(Object.keys(ROWS).map((id) => [id, catalogFor(id)]));
+  return Object.fromEntries(Object.keys(ROSTERS).map((id) => [id, catalogFor(id)]));
 }
 
 function catalogGameIds() {
-  return Object.keys(ROWS);
+  return Object.keys(ROSTERS);
 }
 
 /* ---- core/tuning.js ---- */
@@ -1642,7 +1807,8 @@ function computeTuning(weapon, rawProfile = {}) {
 
 function estimateConfidence(weapon) {
   let score = 0.35;
-  if (weapon.source === 'preset') score += 0.2;
+  if (weapon.source === 'preset' && !weapon.estimated) score += 0.2;
+  if (weapon.estimated) score -= 0.15;
   if (weapon.recoil.pattern) score += 0.25;
   if (weapon.attachments.length) score += 0.05;
   if (weapon.warnings?.length) score -= 0.1 * weapon.warnings.length;
@@ -2392,16 +2558,43 @@ function syncProfileInputs() {
 /* ------------------------------------------------------------------ */
 
 function renderCatalog() {
-  const list = state.meta.catalog[state.game] || [];
+  const all = state.meta.catalog[state.game] || [];
   const box = $('#catalog');
-  if (!list.length) {
-    box.innerHTML = '<div class="empty">No bundled presets for this game yet - use Describe, JSON, CSV or Manual.</div>';
+
+  const classSelect = $('#catalog-class');
+  if (classSelect.dataset.game !== state.game) {
+    // only offer classes this game actually fields
+    const present = state.meta.categories.filter((c) => all.some((w) => w.category === c.id));
+    classSelect.innerHTML = `<option value="">All classes (${all.length})</option>` +
+      present.map((c) => `<option value="${c.id}">${escapeHtml(c.label)} (${all.filter((w) => w.category === c.id).length})</option>`).join('');
+    classSelect.dataset.game = state.game;
+    classSelect.value = '';
+  }
+
+  const query = ($('#catalog-search').value || '').trim().toLowerCase();
+  const wanted = classSelect.value;
+  const list = all
+    .map((weapon, index) => ({ weapon, index }))
+    .filter(({ weapon }) => (!wanted || weapon.category === wanted) &&
+      (!query || weapon.name.toLowerCase().includes(query)));
+
+  $('#catalog-count').textContent = list.length === all.length
+    ? `${all.length} weapons`
+    : `${list.length} of ${all.length}`;
+
+  if (!all.length) {
+    box.innerHTML = '<div class="empty">No roster bundled for this game yet — use Describe, JSON, CSV or Manual.</div>';
     return;
   }
-  box.innerHTML = list.map((w, i) => `
-    <button data-preset="${i}">
-      <span class="cname">${escapeHtml(w.name)}</span>
-      <span class="cmeta">${w.rpm} rpm · V${w.recoil.vertical} H${w.recoil.horizontal}</span>
+  if (!list.length) {
+    box.innerHTML = `<div class="empty">Nothing matches “${escapeHtml(query)}”. Add it by hand on the Manual tab.</div>`;
+    return;
+  }
+
+  box.innerHTML = list.map(({ weapon, index }) => `
+    <button data-preset="${index}">
+      <span class="cname">${escapeHtml(weapon.name)}${weapon.estimated ? '<span class="est-tag">est</span>' : ''}</span>
+      <span class="cmeta">${weapon.rpm} rpm · V${weapon.recoil.vertical} H${weapon.recoil.horizontal}</span>
     </button>`).join('');
 }
 
@@ -2679,6 +2872,10 @@ function wire() {
     ['catalog', 'describe', 'screenshot', 'json', 'csv', 'manual']
       .forEach((id) => { $(`#sub-${id}`).hidden = id !== btn.dataset.sub; });
   }));
+
+  // catalog search / filter
+  $('#catalog-search').addEventListener('input', renderCatalog);
+  $('#catalog-class').addEventListener('change', renderCatalog);
 
   // game
   $('#game').addEventListener('change', (e) => {

@@ -173,16 +173,43 @@ function syncProfileInputs() {
 /* ------------------------------------------------------------------ */
 
 function renderCatalog() {
-  const list = state.meta.catalog[state.game] || [];
+  const all = state.meta.catalog[state.game] || [];
   const box = $('#catalog');
-  if (!list.length) {
-    box.innerHTML = '<div class="empty">No bundled presets for this game yet - use Describe, JSON, CSV or Manual.</div>';
+
+  const classSelect = $('#catalog-class');
+  if (classSelect.dataset.game !== state.game) {
+    // only offer classes this game actually fields
+    const present = state.meta.categories.filter((c) => all.some((w) => w.category === c.id));
+    classSelect.innerHTML = `<option value="">All classes (${all.length})</option>` +
+      present.map((c) => `<option value="${c.id}">${escapeHtml(c.label)} (${all.filter((w) => w.category === c.id).length})</option>`).join('');
+    classSelect.dataset.game = state.game;
+    classSelect.value = '';
+  }
+
+  const query = ($('#catalog-search').value || '').trim().toLowerCase();
+  const wanted = classSelect.value;
+  const list = all
+    .map((weapon, index) => ({ weapon, index }))
+    .filter(({ weapon }) => (!wanted || weapon.category === wanted) &&
+      (!query || weapon.name.toLowerCase().includes(query)));
+
+  $('#catalog-count').textContent = list.length === all.length
+    ? `${all.length} weapons`
+    : `${list.length} of ${all.length}`;
+
+  if (!all.length) {
+    box.innerHTML = '<div class="empty">No roster bundled for this game yet — use Describe, JSON, CSV or Manual.</div>';
     return;
   }
-  box.innerHTML = list.map((w, i) => `
-    <button data-preset="${i}">
-      <span class="cname">${escapeHtml(w.name)}</span>
-      <span class="cmeta">${w.rpm} rpm · V${w.recoil.vertical} H${w.recoil.horizontal}</span>
+  if (!list.length) {
+    box.innerHTML = `<div class="empty">Nothing matches “${escapeHtml(query)}”. Add it by hand on the Manual tab.</div>`;
+    return;
+  }
+
+  box.innerHTML = list.map(({ weapon, index }) => `
+    <button data-preset="${index}">
+      <span class="cname">${escapeHtml(weapon.name)}${weapon.estimated ? '<span class="est-tag">est</span>' : ''}</span>
+      <span class="cmeta">${weapon.rpm} rpm · V${weapon.recoil.vertical} H${weapon.recoil.horizontal}</span>
     </button>`).join('');
 }
 
@@ -460,6 +487,10 @@ function wire() {
     ['catalog', 'describe', 'screenshot', 'json', 'csv', 'manual']
       .forEach((id) => { $(`#sub-${id}`).hidden = id !== btn.dataset.sub; });
   }));
+
+  // catalog search / filter
+  $('#catalog-search').addEventListener('input', renderCatalog);
+  $('#catalog-class').addEventListener('change', renderCatalog);
 
   // game
   $('#game').addEventListener('change', (e) => {

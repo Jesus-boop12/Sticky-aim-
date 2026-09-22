@@ -21,6 +21,21 @@
 
 export const GAMES = [
   {
+    id: 'cod-bo7',
+    name: 'Call of Duty: Black Ops 7',
+    family: 'cod',
+    referenceFov: 80,
+    referenceSens: 6,
+    sensExponent: 1.0,
+    referenceAds: 0.9,
+    responseCurves: { standard: 1.18, linear: 1.0, dynamic: 1.12 },
+    recoilGain: 0.60,
+    kickDelayMs: 70,
+    semiFireCapRpm: 400,
+    aimAssist: { type: 'rotational', radius: 7, periodMs: 90 },
+    notes: 'Rotational aim assist, as with the rest of the Black Ops line.'
+  },
+  {
     id: 'cod-bo6',
     name: 'Call of Duty: Black Ops 6',
     family: 'cod',
