@@ -14,7 +14,8 @@ const state = {
   script: '',
   fileName: 'weapon.gpc',
   selected: 0,
-  scriptOptions: { title: '', author: '', modButton: 'view', startSlot: 0 }
+  scriptOptions: { title: '', author: '', modButton: 'view', startSlot: 0,
+                   mode: 'slots', primary: 'ar', secondary: 'smg' }
 };
 
 const SETUP_STORE = 'stickyaim.setups.v1';
@@ -135,6 +136,13 @@ async function boot() {
     .map((id) => `<option value="${id}">${escapeHtml(SHAPE_LABELS[id] || id)}</option>`).join('');
   $('#p-stickyWhen').innerHTML = state.meta.options.stickyWhen
     .map((id) => `<option value="${id}">${escapeHtml(WHEN_LABELS[id] || id)}</option>`).join('');
+  const classOptions = state.meta.options.universalClasses
+    .map((id) => `<option value="${id}">${escapeHtml(state.meta.categories.find((c) => c.id === id)?.label || id)}</option>`).join('');
+  $('#s-primary').innerHTML = classOptions;
+  $('#s-secondary').innerHTML = classOptions;
+  $('#s-primary').value = 'ar';
+  $('#s-secondary').value = 'smg';
+
   $('#p-aimAssist').innerHTML = state.meta.options.aimAssist
     .map((a) => `<option value="${a.id}">${escapeHtml(a.label)}</option>`).join('');
 
@@ -253,10 +261,36 @@ function renderStartSlots() {
 }
 
 function renderScript() {
-  $('#script-out').textContent = state.script || 'Add a weapon, then press Generate script.';
+  const universal = state.scriptOptions.mode === 'universal';
+  $('#script-out').textContent = state.script ||
+    (universal ? 'Press Generate script.' : 'Add a weapon, then press Generate script.');
   $('#script-meta').textContent = state.script
-    ? `${state.fileName} · ${state.script.split('\n').length} lines · ${state.weapons.length} slot(s)`
+    ? `${state.fileName} · ${state.script.split('\n').length} lines · ` +
+      (universal ? `${state.classProfiles?.length || 0} class profiles` : `${state.weapons.length} slot(s)`)
     : '';
+
+  for (const id of ['#f-primary', '#f-secondary']) $(id).hidden = !universal;
+  $('#f-start').hidden = universal;          // there are no weapon slots in a universal script
+
+  const box = $('#universal-summary');
+  box.hidden = !universal || !state.classProfiles;
+  if (!box.hidden) {
+    box.innerHTML = `
+      <p class="hint">One profile per weapon class, each built from every gun of that class in the roster.
+        The script follows your weapon-swap button — a Cronus cannot see the game, so that is as close to
+        automatic as the hardware gets.</p>
+      <table>
+        <thead><tr><th>Class</th><th class="num">Built from</th><th class="num">Pull</th>
+          <th class="num">Their range</th><th>Mods</th></tr></thead>
+        <tbody>${state.classProfiles.map((c) => `<tr>
+          <td>${escapeHtml(c.label)}</td>
+          <td class="num">${c.weaponCount}</td>
+          <td class="num">${c.vertical}</td>
+          <td class="num">${c.spread.low}–${c.spread.high}</td>
+          <td class="hint">${[c.sticky ? 'sticky ±' + c.sticky : '', c.rapidFire ? 'rapid fire' : ''].filter(Boolean).join(', ') || '—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  }
 }
 
 /* ---- tune detail ---- */
@@ -439,7 +473,8 @@ let refreshTimer;
 function refresh() {
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(async () => {
-    if (!state.weapons.length) {
+    const universal = state.scriptOptions.mode === 'universal';
+    if (!universal && !state.weapons.length) {
       state.entries = [];
       state.script = '';
       renderSlots(); renderTune(); renderScript();
@@ -451,11 +486,14 @@ function refresh() {
         profile: { ...state.profile, game: state.game },
         ...state.scriptOptions
       });
-      state.entries = result.entries;
       state.script = result.gpc;
       state.fileName = result.fileName;
-      // keep the canonical (normalised) weapons so edits round-trip cleanly
-      state.weapons = result.entries.map((e) => e.weapon);
+      state.classProfiles = result.classProfiles || null;
+      if (!universal) {
+        state.entries = result.entries;
+        // keep the canonical (normalised) weapons so edits round-trip cleanly
+        state.weapons = result.entries.map((e) => e.weapon);
+      }
       renderSlots(); renderTune(); renderScript();
     } catch (err) {
       toast(err.message, true);
@@ -624,13 +662,20 @@ function wire() {
   });
 
   // script options
+  $('#s-mode').addEventListener('change', (e) => {
+    state.scriptOptions.mode = e.target.value;
+    renderScript();
+    refresh();
+  });
+  $('#s-primary').addEventListener('change', (e) => { state.scriptOptions.primary = e.target.value; refresh(); });
+  $('#s-secondary').addEventListener('change', (e) => { state.scriptOptions.secondary = e.target.value; refresh(); });
   $('#s-title').addEventListener('input', (e) => { state.scriptOptions.title = e.target.value; refresh(); });
   $('#s-author').addEventListener('input', (e) => { state.scriptOptions.author = e.target.value; refresh(); });
   $('#s-mod').addEventListener('change', (e) => { state.scriptOptions.modButton = e.target.value; refresh(); });
   $('#s-start').addEventListener('change', (e) => { state.scriptOptions.startSlot = Number(e.target.value); refresh(); });
 
   $('#btn-generate').addEventListener('click', () => {
-    if (!state.weapons.length) return toast('Add a weapon first.', true);
+    if (state.scriptOptions.mode !== 'universal' && !state.weapons.length) return toast('Add a weapon first.', true);
     $$('.tabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === 'script')));
     ['import', 'tune', 'script', 'coach'].forEach((id) => { $(`#tab-${id}`).hidden = id !== 'script'; });
     refresh();

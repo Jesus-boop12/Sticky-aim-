@@ -17,7 +17,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 /** Dependency order matters: concatenation replaces the module graph. */
-const CORE_MODULES = ['core/games.js', 'core/weapons.js', 'core/catalog.js', 'core/tuning.js', 'core/gpc.js', 'core/coach.js'];
+const CORE_MODULES = ['core/games.js', 'core/weapons.js', 'core/catalog.js', 'core/tuning.js', 'core/universal.js', 'core/gpc.js', 'core/coach.js'];
 
 /** Flatten one ES module into plain top-level code. */
 function inlineModule(src) {
@@ -68,6 +68,7 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
           stickyWhen: STICKY_WHEN,
           aimAssist: Object.entries(AIM_ASSIST_SETTINGS).map(([id, a]) => ({ id, label: a.label })),
           customTargets: CUSTOM_TARGETS,
+          universalClasses: UNIVERSAL_CLASSES,
           overrides: OVERRIDE_SPEC
         },
         maxSlots: MAX_SLOTS,
@@ -91,8 +92,22 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
       return { entries: entries() };
 
     case '/api/generate': {
+      const options = { title: body.title, author: body.author, modButton: body.modButton,
+                        startSlot: body.startSlot, primary: body.primary, secondary: body.secondary,
+                        game: body.profile?.game };
+      if (body.mode === 'universal') {
+        const game = body.profile?.game || 'generic';
+        const classProfiles = buildClassProfiles(game, body.profile || {});
+        return {
+          gpc: buildUniversalScript(classProfiles, options),
+          fileName: game + '-universal.gpc',
+          classProfiles: classProfiles.map((c) => ({ id: c.id, label: c.label, weaponCount: c.weaponCount,
+            spread: c.spread, examples: c.examples, vertical: c.tuning.antiRecoil.vertical,
+            sticky: c.tuning.sticky.enabled ? c.tuning.sticky.radius : 0, rapidFire: c.tuning.rapidFire.enabled })),
+          entries: []
+        };
+      }
       const list = entries();
-      const options = { title: body.title, author: body.author, modButton: body.modButton, startSlot: body.startSlot };
       return { gpc: buildGpcScript(list, options), fileName: scriptFileName(list, options), entries: list };
     }
 

@@ -16,7 +16,8 @@ import { fullCatalog } from '../core/catalog.js';
 import { importFromCsv, importFromJson, normalizeWeapon, OVERRIDE_SPEC } from '../core/weapons.js';
 import { computeTuning, normalizeProfile, DEFAULT_PROFILE, RAMP_SPEEDS, STICKY_SHAPES, STICKY_WHEN,
          AIM_ASSIST_SETTINGS, CUSTOM_TARGETS } from '../core/tuning.js';
-import { buildGpcScript, scriptFileName, listLayouts, MAX_SLOTS } from '../core/gpc.js';
+import { buildGpcScript, buildUniversalScript, scriptFileName, listLayouts, MAX_SLOTS } from '../core/gpc.js';
+import { buildClassProfiles, UNIVERSAL_CLASSES } from '../core/universal.js';
 import { aiEnabled, extractWeaponsFromText, extractWeaponsFromImage, coach, MODEL } from './ai.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -80,6 +81,7 @@ const ROUTES = {
       stickyWhen: STICKY_WHEN,
       aimAssist: Object.entries(AIM_ASSIST_SETTINGS).map(([id, a]) => ({ id, label: a.label })),
       customTargets: CUSTOM_TARGETS,
+      universalClasses: UNIVERSAL_CLASSES,
       overrides: OVERRIDE_SPEC
     },
     maxSlots: MAX_SLOTS,
@@ -115,13 +117,30 @@ const ROUTES = {
   },
 
   'POST /api/generate': async (body) => {
-    const entries = prepareEntries(body);
     const options = {
       title: body.title,
       author: body.author,
       modButton: body.modButton,
-      startSlot: body.startSlot
+      startSlot: body.startSlot,
+      primary: body.primary,
+      secondary: body.secondary,
+      game: body.profile?.game
     };
+
+    if (body.mode === 'universal') {
+      const game = body.profile?.game || 'generic';
+      const classProfiles = buildClassProfiles(game, body.profile || {});
+      return {
+        gpc: buildUniversalScript(classProfiles, options),
+        fileName: `${game}-universal.gpc`,
+        classProfiles: classProfiles.map(({ id, label, weaponCount, spread, examples, tuning }) =>
+          ({ id, label, weaponCount, spread, examples, vertical: tuning.antiRecoil.vertical,
+             sticky: tuning.sticky.enabled ? tuning.sticky.radius : 0, rapidFire: tuning.rapidFire.enabled })),
+        entries: []
+      };
+    }
+
+    const entries = prepareEntries(body);
     return {
       gpc: buildGpcScript(entries, options),
       fileName: scriptFileName(entries, options),

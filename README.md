@@ -104,7 +104,26 @@ plus force-on/force-off switches for sticky aim and rapid fire. Empty means
 and anything you set by hand is flagged with a `*` in the script header. One
 button puts the weapon back on auto.
 
-**3 · Script** — copy or download the `.gpc`.
+**3 · Script** — copy or download the `.gpc`, in one of two shapes:
+
+- **Per weapon** — up to 8 guns you pick, switched with the modifier + D-pad.
+- **Universal** — one profile per weapon *class*, each built from every gun of
+  that class in the roster (41 assault rifles, 39 SMGs…), with the profile
+  following your in-game weapon-swap button.
+
+On "automatic": a Cronus sees only your controller. It cannot read the game, so
+it cannot know which gun you are holding. The universal script gets as close as
+the hardware allows — you tell it what your primary and secondary are once, and
+every swap press flips the profile with you. Anything that changes your weapon
+*without* a swap press (a ground pickup, a killstreak, respawning) leaves it one
+profile behind; tap swap twice to resync. The generated header says all of this
+too, because a script that quietly guesses wrong is worse than one that tells
+you how it works.
+
+A class profile sits in the middle of its class — for Warzone's assault rifles
+that is a pull of 38 against a class that runs 29–46 — so it is never far wrong
+and never exactly right. For the gun you actually live on, build a per-weapon
+script.
 
 **4 · Review** — have Claude sanity-check the generated values and tell you what
 to test first (falls back to fixed range-testing notes without a key).

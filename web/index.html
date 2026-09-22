@@ -238,16 +238,25 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
     <!-- SCRIPT -->
     <div class="card" id="tab-script" hidden>
       <div class="grid-2">
+        <label class="field">Script type
+          <select id="s-mode">
+            <option value="slots">Per weapon — up to 8 guns you pick</option>
+            <option value="universal">Universal — every gun, follows your weapon swap</option>
+          </select>
+        </label>
+        <label class="field" id="f-primary" hidden>Primary is a… <select id="s-primary"></select></label>
+        <label class="field" id="f-secondary" hidden>Secondary is a… <select id="s-secondary"></select></label>
         <label class="field">Script title <input id="s-title" placeholder="auto"></label>
         <label class="field">Author <input id="s-author" placeholder="Sticky Aim Studio"></label>
         <label class="field">Slot-switch modifier <select id="s-mod"></select></label>
-        <label class="field">Boot slot <select id="s-start"></select></label>
+        <label class="field" id="f-start">Boot slot <select id="s-start"></select></label>
       </div>
       <div class="row" style="margin:14px 0">
         <button class="primary" id="btn-copy">Copy script</button>
         <button id="btn-download">Download .gpc</button>
         <span class="hint" id="script-meta"></span>
       </div>
+      <div id="universal-summary" hidden></div>
       <pre class="script" id="script-out">Add a weapon, then press Generate script.</pre>
       <details class="loadguide" open style="margin-top:16px">
         <summary>Getting this onto your Cronus</summary>

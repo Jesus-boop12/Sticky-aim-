@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import { normalizeWeapon, importFromCsv, importFromJson, importFromTextHeuristic, parseCsv } from '../core/weapons.js';
 import { computeTuning, normalizeProfile, normalizeCustomSettings, PHASE_COUNT } from '../core/tuning.js';
-import { buildGpcScript, scriptFileName, MAX_SLOTS } from '../core/gpc.js';
+import { buildGpcScript, buildUniversalScript, scriptFileName, MAX_SLOTS } from '../core/gpc.js';
+import { buildClassProfiles } from '../core/universal.js';
 import { catalogFor } from '../core/catalog.js';
 import { getGame, listGames } from '../core/games.js';
 
@@ -610,4 +611,76 @@ test('a long diagnostic wraps in the header instead of being cut off', () => {
   assert.match(flat, /raise your in-game sensitivity or ADS multiplier, then re-generate\./,
     'the warning must survive whole');
   for (const line of header.split('\n')) assert.ok(line.length <= 120, `header line too long: ${line.length}`);
+});
+
+/* ---------------- universal script ---------------- */
+
+test('a class profile is built from every weapon of that class', () => {
+  const profiles = buildClassProfiles('warzone', { sensitivity: 6 });
+  assert.ok(profiles.length >= 7, 'every class in the roster gets a profile');
+
+  const ar = profiles.find((c) => c.id === 'ar');
+  assert.ok(ar.weaponCount > 30, `only ${ar.weaponCount} ARs went into the profile`);
+  // the profile sits inside the range of the guns it was built from
+  assert.ok(ar.tuning.antiRecoil.vertical >= ar.spread.low && ar.tuning.antiRecoil.vertical <= ar.spread.high);
+  assert.equal(ar.tuning.antiRecoil.horizontal, 0, 'a class has no shared drift direction');
+  assert.match(ar.tuning.diagnostics.join(' '), /Built from all \d+ assault rifles/);
+
+  for (const c of profiles) {
+    for (let i = 1; i < c.tuning.antiRecoil.phases.length; i++) {
+      assert.ok(c.tuning.antiRecoil.phases[i].untilMs > c.tuning.antiRecoil.phases[i - 1].untilMs,
+        `${c.label}: medianed phases fell out of order`);
+    }
+  }
+});
+
+test('a class only carries a mod most of its weapons want', () => {
+  const profiles = buildClassProfiles('cod-mw3', { sensitivity: 6, rapidFire: 'auto' });
+  assert.equal(profiles.find((c) => c.id === 'ar').tuning.rapidFire.enabled, false, 'ARs are full-auto');
+  assert.equal(profiles.find((c) => c.id === 'sniper').tuning.sticky.enabled, false, 'snipers skip sticky aim');
+});
+
+test('the universal script follows the swap button and indexes by class', () => {
+  const profiles = buildClassProfiles('warzone', { sensitivity: 6 });
+  const gpc = buildUniversalScript(profiles, { game: 'warzone', primary: 'ar', secondary: 'smg' });
+
+  assert.match(gpc, /define BTN_SWAP   = XB1_Y;/);
+  assert.match(gpc, /if\(!get_val\(BTN_MOD\) && event_press\(BTN_SWAP\)\)/, 'a swap must flip the profile');
+  assert.match(gpc, /if\(holding_second\) cls = second_class; else cls = primary_class;/);
+  assert.match(gpc, /idx = cls \* PHASES;/);
+  assert.ok(!gpc.includes('[slot]'), 'nothing may still index by weapon slot');
+
+  assert.equal(gpc.split('{').length, gpc.split('}').length, 'unbalanced braces');
+  assert.ok(!/undefined|NaN/.test(gpc));
+  assert.ok(!gpc.split('\n').some((l) => l.trim().startsWith('#')), 'no preprocessor directives');
+
+  const values = (name) => gpc.match(new RegExp(`${name}\\[\\] = \\{([^}]*)\\}`))[1].split(',').length;
+  assert.equal(values('PH_V'), profiles.length * PHASE_COUNT);
+  assert.equal(values('AR_RELEASE'), profiles.length);
+  assert.equal(values('STICKY_R'), profiles.length);
+});
+
+test('the universal script is honest about what it cannot know', () => {
+  const profiles = buildClassProfiles('cod-bo7', { sensitivity: 6 });
+  const header = buildUniversalScript(profiles, { game: 'cod-bo7' })
+    .split('/* ---------------- controller layout')[0]
+    .replace(/^\s*\*\s*/gm, ' ').replace(/\s+/g, ' ');
+
+  assert.match(header, /cannot read the game, so it cannot know which gun you are holding/);
+  assert.match(header, /picking a gun off the ground.*leaves it one profile behind/);
+  assert.match(header, /Tap swap twice to resync/);
+});
+
+test('the boot classes come from the request', () => {
+  const profiles = buildClassProfiles('warzone', { sensitivity: 6 });
+  const gpc = buildUniversalScript(profiles, { game: 'warzone', primary: 'sniper', secondary: 'pistol' });
+  const sniper = profiles.findIndex((c) => c.id === 'sniper');
+  const pistol = profiles.findIndex((c) => c.id === 'pistol');
+  assert.ok(gpc.includes(`define START_PRIMARY  = ${sniper};`));
+  assert.ok(gpc.includes(`define START_SECOND   = ${pistol};`));
+});
+
+test('a game with no roster cannot make a universal script', () => {
+  assert.throws(() => buildClassProfiles('generic', {}), /no bundled roster/);
+  assert.throws(() => buildUniversalScript([], {}), /No class profiles/);
 });
