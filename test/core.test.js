@@ -707,7 +707,7 @@ test('the validator catches what Zen Studio only says one terse word about', () 
     ['#pragma METAINFO("x", 1, 0, "y")\nmain {\n}\n', /"#" directives are not GPC/],
     ['main {\n  set_val(1, 0);\n', /block\(s\) never closed/],
     ['main {\n  if(get_val(1) {\n  }\n}\n', /unbalanced parentheses/],
-    ['int a;\nmain {\n  a = TABLE[a];\n}\n', /TABLE\[\] is read but no such table is declared/],
+    ['int a;\nmain {\n  a = TABLE[a];\n}\n', /"TABLE\[\]" is read but no such table is declared/],
     ['main {\n  combo_run(NOPE);\n}\n', /combo NOPE is used but never defined/],
     ['main {\n  idx = 1;\n}\n', /"idx" is assigned but never declared/]
   ];
