@@ -10,6 +10,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { normalizeWeapon, importFromTextHeuristic } from '../core/weapons.js';
 import { getGame } from '../core/games.js';
+import { offlineCoachNotes } from '../core/coach.js';
 
 const MODEL = process.env.STICKY_AIM_MODEL || 'claude-opus-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
@@ -180,19 +181,7 @@ export async function extractWeaponsFromImage({ data, mediaType, game = 'generic
 /* ------------------------------------------------------------------ */
 
 function offlineCoach(entries) {
-  const lines = entries.map(({ weapon, tuning }) => {
-    const ar = tuning.antiRecoil;
-    return [
-      `**${weapon.name}** (slot value V:${ar.vertical} H:${ar.horizontal})`,
-      `- Confidence in the source stats: ${Math.round(tuning.confidence * 100)}%.`,
-      `- Start on the range: hold the trigger on a wall at 20m and watch where the shots land.`,
-      `- Landing above the dot means PH_V is too low, below the dot means too high. Trim 2 at a time.`,
-      ar.horizontal === 0
-        ? '- No horizontal correction is applied; this weapon has no consistent drift.'
-        : `- Horizontal correction of ${ar.horizontal} counters its ${ar.horizontal > 0 ? 'left' : 'right'} walk.`
-    ].join('\n');
-  });
-  return `Offline notes (set ANTHROPIC_API_KEY for a tailored review):\n\n${lines.join('\n\n')}`;
+  return `Offline notes (set ANTHROPIC_API_KEY for a tailored review):\n\n${offlineCoachNotes(entries)}`;
 }
 
 /** Ask Claude to review the generated tuning and answer a question about it. */

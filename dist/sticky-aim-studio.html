@@ -1,0 +1,3100 @@
+<title>Sticky Aim Weapon Studio</title>
+<style>
+/* Sticky Aim Weapon Studio - dark-first workbench UI. */
+:root {
+  color-scheme: dark;
+  --surface-0: #121211;
+  --surface-1: #1a1a19;
+  --surface-2: #232321;
+  --surface-3: #2e2e2b;
+  --line: #3a3a36;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #8b8a81;
+  --accent: #3987e5;
+  --series-1: #3987e5;   /* vertical push   */
+  --series-2: #d95926;   /* horizontal push */
+  --good: #199e70;
+  --warn: #c98500;
+  --bad: #e66767;
+  --radius: 10px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+h2 { font-size: 17px; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+p { margin: 0 0 10px; color: var(--text-secondary); }
+a { color: var(--accent); }
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 20px; background: var(--surface-1); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 { font-size: 17px; }
+.brand span { font-size: 12px; color: var(--text-muted); }
+.badge {
+  font-size: 11px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--text-secondary); background: var(--surface-2);
+  white-space: nowrap;
+}
+.badge.on { color: var(--good); border-color: #1b5e47; }
+
+/* ---------- layout ---------- */
+main { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 18px; padding: 18px 20px 60px; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
+
+.card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.card + .card { margin-top: 14px; }
+.stack { display: grid; gap: 12px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+
+/* ---------- controls ---------- */
+label.field { display: grid; gap: 5px; font-size: 12px; color: var(--text-muted); min-width: 0; }
+label.field > input, label.field > select { width: 100%; min-width: 0; }   /* long option text must not widen the grid track */
+input, select, textarea, button {
+  font: inherit; color: var(--text-primary); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+textarea { min-height: 120px; resize: vertical; font-family: var(--mono); font-size: 13px; }
+input[type="range"] { padding: 0; background: none; border: none; }
+button { cursor: pointer; background: var(--surface-3); }
+button:hover { border-color: #55554f; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button.ghost { background: transparent; }
+button.danger { color: var(--bad); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.hint { font-size: 12px; color: var(--text-muted); }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* ---------- tabs ---------- */
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 14px; }
+.tabs button {
+  background: transparent; border: 1px solid transparent; color: var(--text-muted);
+  padding: 7px 13px; border-radius: 999px;
+}
+.tabs button[aria-selected="true"] { background: var(--surface-2); border-color: var(--line); color: var(--text-primary); }
+.subtabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+.subtabs button { font-size: 13px; padding: 5px 10px; border-radius: 7px; background: transparent; color: var(--text-muted); border-color: transparent; }
+.subtabs button[aria-selected="true"] { background: var(--surface-2); border-color: var(--line); color: var(--text-primary); }
+[hidden] { display: none !important; }
+
+/* ---------- slot list ---------- */
+.slot {
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center;
+  width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 8px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px;
+}
+.slot[aria-current="true"] { border-color: var(--accent); background: #16263a; }
+.slot .idx { font: 600 12px var(--mono); color: var(--text-muted); }
+.slot .name { font-weight: 600; font-size: 14px; }
+.slot .meta { font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+.slot .drag { cursor: grab; color: var(--text-muted); background: none; border: none; padding: 2px 6px; }
+.empty { padding: 22px 12px; text-align: center; color: var(--text-muted); font-size: 13px; border: 1px dashed var(--line); border-radius: 9px; }
+
+/* ---------- catalog ---------- */
+.catalog { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; max-height: 420px; overflow: auto; }
+.catalog button { display: grid; gap: 2px; text-align: left; padding: 9px 11px; background: var(--surface-2); }
+.catalog .cname { font-weight: 600; font-size: 13px; }
+.catalog .cmeta { font-size: 11px; color: var(--text-muted); font-family: var(--mono); }
+
+/* ---------- readouts ---------- */
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.stat { background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+.stat .k { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat .v { font: 600 20px var(--mono); }
+.stat .u { font-size: 11px; color: var(--text-muted); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; }
+td.num { font-family: var(--mono); text-align: right; }
+
+ul.diagnostics { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-secondary); }
+ul.diagnostics li { margin-bottom: 4px; }
+ul.diagnostics li.warn { color: var(--warn); list-style: none; margin-left: -12px; }
+
+/* ---------- chart ---------- */
+.chart-wrap { background: var(--surface-1); border-radius: 9px; position: relative; }
+.chart-wrap svg { display: block; width: 100%; height: auto; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+.tooltip {
+  position: absolute; pointer-events: none; background: var(--surface-3); border: 1px solid var(--line);
+  border-radius: 7px; padding: 6px 9px; font: 12px/1.4 var(--mono); white-space: nowrap;
+  transform: translate(-50%, -110%); opacity: 0; transition: opacity 0.1s;
+}
+.tooltip.on { opacity: 1; }
+
+/* ---------- script view ---------- */
+pre.script {
+  margin: 0; max-height: 540px; overflow: auto; background: #0e0e0d; border: 1px solid var(--line);
+  border-radius: 9px; padding: 14px; font: 12.5px/1.55 var(--mono); color: #d7d6cb; white-space: pre;
+}
+.coach-out { background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 14px; font-size: 14px; }
+.coach-out strong { color: var(--text-primary); }
+
+/* ---------- toast ---------- */
+#toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+  background: var(--surface-3); border: 1px solid var(--line); border-radius: 9px;
+  padding: 10px 16px; font-size: 13px; opacity: 0; transition: all 0.18s; pointer-events: none; z-index: 50;
+}
+#toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.err { border-color: var(--bad); color: var(--bad); }
+
+/* ---------- your own in-game settings ---------- */
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr) 92px 30px;
+  gap: 8px; align-items: center; margin-bottom: 8px;
+}
+.setting-row .adjust { display: flex; align-items: center; gap: 4px; }
+.setting-row .adjust input { width: 100%; min-width: 0; }
+.setting-row .adjust.off { opacity: 0.35; }
+.setting-row input, .setting-row select { min-width: 0; }
+@media (max-width: 700px) {
+  .setting-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px;
+    grid-template-areas: "name value remove" "affects affects affects" "adjust adjust adjust";
+    padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2);
+  }
+  .setting-row [data-cs="name"] { grid-area: name; }
+  .setting-row [data-cs="value"] { grid-area: value; }
+  .setting-row [data-cs="affects"] { grid-area: affects; }
+  .setting-row .adjust { grid-area: adjust; }
+  .setting-row [data-remove-cs] { grid-area: remove; }
+}
+
+/* ---------- load-onto-device guide ---------- */
+.loadguide { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; background: var(--surface-2); }
+.loadguide summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.loadguide summary::marker { color: var(--text-muted); }
+.loadguide ol { margin: 12px 0 0; padding-left: 20px; line-height: 1.65; font-size: 13.5px; color: var(--text-secondary); }
+.loadguide ol li { margin-bottom: 7px; }
+.loadguide ol b { color: var(--text-primary); }
+
+
+/* ---------- standalone build ---------- */
+html, body { background: var(--surface-0); }
+.topbar { top: env(safe-area-inset-top, 0px); }
+.standalone-note {
+  margin: 0 20px 14px; padding: 10px 14px; font-size: 13px; color: var(--text-secondary);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 8px; background: var(--surface-1);
+}
+@media (max-width: 900px) { .standalone-note { margin: 0 16px 12px; } }
+</style>
+
+<div class="standalone-note">
+  Running entirely in this browser — nothing is uploaded and no server is needed. Build your script, then
+  <b>Copy script</b> and paste it into Zen Studio (or <b>Save script</b>, which hands you a .gpc.txt to rename).
+  The AI importers — screenshot reading and the tuning review — need the local Node app; everything else works here.
+</div>
+<header class="topbar">
+  <div class="brand">
+    <h1>Sticky Aim Weapon Studio</h1>
+    <span>weapon stats in, tuned Cronus GPC out</span>
+  </div>
+  <label class="field" style="min-width:210px">
+    Game
+    <select id="game"></select>
+  </label>
+  <span class="badge" id="ai-badge">AI: checking…</span>
+  <button class="primary" id="btn-generate">Generate script</button>
+</header>
+
+<main>
+  <!-- ---------------- loadout ---------------- -->
+  <aside>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h2>Loadout</h2>
+        <span class="hint" id="slot-count">0 / 8</span>
+      </div>
+      <div id="slot-list"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" id="btn-clear">Clear all</button>
+        <button class="ghost" id="btn-export-weapons">Export JSON</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Legal / fair play</h3>
+      <p class="hint" style="margin:8px 0 0">
+        Scripted recoil control breaks the terms of service of most online shooters and can get an
+        account banned. Built for single-player, private lobbies, accessibility setups and range testing —
+        where you use it is on you.
+      </p>
+    </div>
+  </aside>
+
+  <!-- ---------------- workspace ---------------- -->
+  <section>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="import" aria-selected="true">1 · Import</button>
+      <button role="tab" data-tab="tune" aria-selected="false">2 · Tune</button>
+      <button role="tab" data-tab="script" aria-selected="false">3 · Script</button>
+      <button role="tab" data-tab="coach" aria-selected="false">4 · Review</button>
+    </nav>
+
+    <!-- IMPORT -->
+    <div class="card" id="tab-import">
+      <div class="subtabs" role="tablist">
+        <button role="tab" data-sub="catalog" aria-selected="true">Catalog</button>
+        <button role="tab" data-sub="describe" aria-selected="false">Describe it</button>
+        <button role="tab" data-sub="screenshot" aria-selected="false">Screenshot</button>
+        <button role="tab" data-sub="json" aria-selected="false">JSON</button>
+        <button role="tab" data-sub="csv" aria-selected="false">CSV</button>
+        <button role="tab" data-sub="manual" aria-selected="false">Manual</button>
+      </div>
+
+      <div id="sub-catalog">
+        <p>Bundled starting stats for the selected game. Community estimates — trim them once you have shot on the range.</p>
+        <div class="catalog" id="catalog"></div>
+      </div>
+
+      <div id="sub-describe" hidden>
+        <p>Paste anything that describes the weapon: a wiki table, patch notes, your own notes, a loadout dump.</p>
+        <textarea id="describe-text" placeholder="MCW - assault rifle, 750 rpm, 30 round mag, moderate vertical kick that walks slightly right. Running a compensator and a heavy stock."></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="btn-describe">Import with AI</button>
+          <span class="hint" id="describe-mode"></span>
+        </div>
+      </div>
+
+      <div id="sub-screenshot" hidden>
+        <p>Drop a screenshot of the gunsmith / loadout / stat screen and Claude will read the bars and numbers off it.</p>
+        <input type="file" id="shot-file" accept="image/png,image/jpeg,image/webp">
+        <label class="field" style="margin-top:10px">Anything worth knowing (optional)
+          <input id="shot-hint" placeholder="fully kitted, suppressor + heavy stock">
+        </label>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="btn-shot">Read screenshot</button>
+          <span class="hint" id="shot-name"></span>
+        </div>
+      </div>
+
+      <div id="sub-json" hidden>
+        <p>Any JSON: an array of weapons, <code>{ "weapons": [...] }</code>, or a single object. Field names are matched loosely
+          (<code>fire_rate</code>, <code>rpm</code>, <code>vertical_recoil</code>… all work).</p>
+        <textarea id="json-text" placeholder='[{"name":"R-301","class":"AR","rpm":810,"vertical_recoil":34,"horizontal_recoil":12,"drift":"right"}]'></textarea>
+        <div class="row" style="margin-top:10px"><button class="primary" id="btn-json">Import JSON</button></div>
+      </div>
+
+      <div id="sub-csv" hidden>
+        <p>Header row plus one row per weapon. Commas or tabs.</p>
+        <textarea id="csv-text" placeholder="name,class,rpm,vertical recoil,horizontal recoil,drift
+MCW,assault rifle,750,38,11,right
+KATT-AMR,sniper,38,78,7,none"></textarea>
+        <div class="row" style="margin-top:10px"><button class="primary" id="btn-csv">Import CSV</button></div>
+      </div>
+
+      <div id="sub-manual" hidden>
+        <p>Know the numbers already? Enter them directly.</p>
+        <div class="grid-2">
+          <label class="field">Name <input id="m-name" placeholder="Custom weapon"></label>
+          <label class="field">Class <select id="m-category"></select></label>
+          <label class="field">Fire mode
+            <select id="m-firemode"><option value="auto">Full auto</option><option value="semi">Semi auto</option><option value="burst">Burst</option></select>
+          </label>
+          <label class="field">Rounds per minute <input id="m-rpm" type="number" value="700" min="30" max="2000"></label>
+          <label class="field">Vertical recoil (0-100) <input id="m-vertical" type="number" value="45" min="0" max="100"></label>
+          <label class="field">Horizontal recoil (0-100) <input id="m-horizontal" type="number" value="12" min="0" max="100"></label>
+          <label class="field">Drift
+            <select id="m-drift"><option value="none">None / random</option><option value="left">Pulls left</option><option value="right">Pulls right</option></select>
+          </label>
+          <label class="field">Magazine <input id="m-mag" type="number" value="30" min="1" max="300"></label>
+        </div>
+        <div class="row" style="margin-top:12px"><button class="primary" id="btn-manual">Add weapon</button></div>
+      </div>
+    </div>
+
+    <!-- TUNE -->
+    <div class="card" id="tab-tune" hidden>
+      <h2>Your settings</h2>
+      <p class="hint">These come out of the game's options menu. They change every number the script uses.</p>
+      <div class="grid-2" style="margin-top:12px">
+        <label class="field">Controller <select id="p-controller"></select></label>
+        <label class="field">Look sensitivity <input id="p-sensitivity" type="number" step="0.5" min="0.5" max="100"></label>
+        <label class="field">ADS sensitivity multiplier <input id="p-adsMultiplier" type="number" step="0.05" min="0.2" max="2"></label>
+        <label class="field">Response curve
+          <select id="p-responseCurve">
+            <option value="standard">Standard</option><option value="linear">Linear</option><option value="dynamic">Dynamic</option>
+          </select>
+        </label>
+        <label class="field">Right stick deadzone (%) <input id="p-deadzone" type="number" min="0" max="30"></label>
+        <label class="field">Vertical stick multiplier <input id="p-verticalSensMultiplier" type="number" step="0.05" min="0.2" max="3"></label>
+        <label class="field">Field of view (0 = game default) <input id="p-fov" type="number" step="1" min="0" max="150"></label>
+        <label class="field">In-game aim assist <select id="p-aimAssist"></select></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="toggle"><input type="checkbox" id="p-fovRelativeAds"> My game ties aim speed to FOV (relative ADS sensitivity)</label>
+      </div>
+
+      <h3 style="margin-top:20px">Your own in-game settings</h3>
+      <p class="hint">Anything else from your options menu that changes how the gun behaves. Give it a name and a
+        value, then say what it should do to the script — or leave it on "just note it" to record it in the script
+        header without changing a number.</p>
+      <div id="custom-settings"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" id="btn-add-setting">+ Add a setting</button>
+        <button class="ghost" id="btn-suggest-settings">Add common ones for this game</button>
+      </div>
+
+      <h3 style="margin-top:20px">Saved setups</h3>
+      <p class="hint">Keep a named copy of everything above — one per game, or one per playstyle. Saved in this browser.</p>
+      <div class="row" style="margin-top:10px">
+        <input id="setup-name" placeholder="e.g. Warzone - controller" style="min-width:210px">
+        <button id="btn-save-setup">Save current settings</button>
+        <select id="setup-list" style="min-width:190px"></select>
+        <button id="btn-load-setup">Load</button>
+        <button class="ghost danger" id="btn-delete-setup">Delete</button>
+      </div>
+
+      <h3 style="margin-top:20px">Recoil control</h3>
+      <p class="hint">How hard the script pulls back, and when it starts.</p>
+      <div class="grid-2" style="margin-top:10px">
+        <label class="field">Strength: <b id="p-strength-val">100%</b>
+          <input id="p-strength" type="range" min="0" max="150" step="5">
+        </label>
+        <label class="field">Ramp-in speed
+          <select id="p-rampSpeed">
+            <option value="instant">Instant — full pull straight away</option>
+            <option value="fast">Fast</option>
+            <option value="normal">Normal</option>
+            <option value="slow">Slow — eases in over a long burst</option>
+          </select>
+        </label>
+        <label class="field">Start delay trim (ms) <input id="p-kickDelayTrim" type="number" step="10" min="-150" max="400"></label>
+        <label class="field">Release threshold: <b id="p-releaseScale-val">100%</b>
+          <input id="p-releaseScale" type="range" min="50" max="200" step="10">
+        </label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="toggle"><input type="checkbox" id="p-adsOnly"> Only compensate while ADS</label>
+        <label class="toggle"><input type="checkbox" id="p-horizontalEnabled"> Horizontal correction</label>
+      </div>
+
+      <h3 style="margin-top:20px">Sticky aim</h3>
+      <p class="hint">A small continuous stick movement that keeps the game's aim assist engaged. Bigger is not better — past a few units it drags your aim.</p>
+      <div class="row" style="margin:10px 0">
+        <label class="toggle"><input type="checkbox" id="p-stickyAim"> Sticky aim on</label>
+      </div>
+      <div class="grid-2">
+        <label class="field">Strength: <b id="p-stickyStrength-val">100%</b>
+          <input id="p-stickyStrength" type="range" min="0" max="200" step="10">
+        </label>
+        <label class="field">Speed: <b id="p-stickySpeed-val">100%</b>
+          <input id="p-stickySpeed" type="range" min="50" max="200" step="10">
+        </label>
+        <label class="field">Shape <select id="p-stickyShape"></select></label>
+        <label class="field">Active <select id="p-stickyWhen"></select></label>
+      </div>
+
+      <h3 style="margin-top:20px">Trigger &amp; stick</h3>
+      <div class="grid-2" style="margin-top:10px">
+        <label class="field">Rapid fire
+          <select id="p-rapidFire"><option value="auto">Auto (semi-auto guns only)</option><option value="on">Force on</option><option value="off">Off</option></select>
+        </label>
+        <label class="field">Aim slowdown while ADS: <b id="p-adsSlowPercent-val">off</b>
+          <input id="p-adsSlowPercent" type="range" min="50" max="100" step="5">
+        </label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="toggle"><input type="checkbox" id="p-hairTrigger"> Hair triggers</label>
+        <label class="toggle"><input type="checkbox" id="p-antiDeadzone"> Anti-deadzone</label>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
+
+      <div id="tune-detail"><div class="empty">Add a weapon to see its tuning.</div></div>
+    </div>
+
+    <!-- SCRIPT -->
+    <div class="card" id="tab-script" hidden>
+      <div class="grid-2">
+        <label class="field">Script title <input id="s-title" placeholder="auto"></label>
+        <label class="field">Author <input id="s-author" placeholder="Sticky Aim Studio"></label>
+        <label class="field">Slot-switch modifier <select id="s-mod"></select></label>
+        <label class="field">Boot slot <select id="s-start"></select></label>
+      </div>
+      <div class="row" style="margin:14px 0">
+        <button class="primary" id="btn-copy">Copy script</button>
+        <button id="btn-download">Download .gpc</button>
+        <span class="hint" id="script-meta"></span>
+      </div>
+      <pre class="script" id="script-out">Add a weapon, then press Generate script.</pre>
+      <details class="loadguide" open style="margin-top:16px">
+        <summary>Getting this onto your Cronus</summary>
+        <ol>
+          <li><b>Install Cronus Zen Studio</b> on a PC or Mac and sign in with your Cronus account.
+            (Titan Two owners: Gtuner IV instead — the flow below is the same, the menus are named differently.)</li>
+          <li><b>Connect the Zen to the computer using the PROG port</b> — the small port on the side, not the
+            OUTPUT port the console plugs into. This is the step people get wrong. Zen Studio should show the
+            device as connected; take any firmware update it offers.</li>
+          <li><b>Open a new GPC script</b> and paste this one in, then <b>Build</b> it. It should compile with no
+            errors — if it does not, the error message names the line.</li>
+          <li><b>Program it into a memory slot</b> and note the slot number.</li>
+          <li><b>Unplug from the computer and wire it to the console:</b> the console's USB cable into the Zen's
+            <b>OUTPUT</b> port, your controller into the Zen's <b>INPUT</b> port.</li>
+          <li><b>Select your slot</b> on the device — the display shows which one is live. When the script starts
+            you get one rumble pulse per weapon slot number.</li>
+          <li><b>Go to a practice range before a real match.</b> Hold the trigger on a wall at about 20m and trim
+            the numbers using the guide in the script header.</li>
+        </ol>
+        <p class="hint">Menu names and shortcuts move around between Zen Studio versions — if something here does
+          not match what you see, look for the equivalent Build / Program action.</p>
+
+        <h3 style="margin-top:14px">It compiled but nothing happens in game</h3>
+        <ul class="hint" style="line-height:1.7">
+          <li>Wrong slot selected on the device, or the master toggle is off — hold the modifier button and press
+            D-pad down to toggle it back on.</li>
+          <li>The script is set to <i>only compensate while ADS</i> and you are hip-firing. Turn that off in the
+            Tune tab if you want it always on.</li>
+          <li>Your in-game deadzone is larger than the pull, so the game throws it away. The Tune tab warns you
+            when that happens.</li>
+          <li>Controller layout mismatch — an Xbox script on a PlayStation pad watches the wrong buttons.
+            Switch the controller setting and re-generate.</li>
+        </ul>
+      </details>
+    </div>
+
+    <!-- COACH -->
+    <div class="card" id="tab-coach" hidden>
+      <h2>Review the tune</h2>
+      <p>Have Claude sanity-check the generated values and tell you what to test first.</p>
+      <label class="field">Question
+        <input id="coach-q" placeholder="Review these settings and tell me what to test first.">
+      </label>
+      <div class="row" style="margin:12px 0">
+        <button class="primary" id="btn-coach">Ask</button>
+        <span class="hint" id="coach-mode"></span>
+      </div>
+      <div class="coach-out" id="coach-out">No review yet.</div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script type="module">
+/* ---- core/games.js ---- */
+/**
+ * Game profiles.
+ *
+ * Every number here is a *calibration starting point*, not ground truth. Games
+ * patch weapon handling constantly and no two players run the same settings, so
+ * the generator treats these as the origin of the tuning curve and expects the
+ * user to trim from there (see README - "Calibrating").
+ *
+ * Field reference:
+ *   referenceFov       field of view the recoil stats are quoted at
+ *   referenceSens      sensitivity the recoil stats in the catalog are quoted at
+ *   sensExponent       how strongly stick compensation scales with sensitivity
+ *   referenceAds       ADS sensitivity multiplier the stats are quoted at
+ *   responseCurves     stick response curve -> compensation multiplier
+ *                      (curves that soften small inputs need a bigger push)
+ *   recoilGain         normalised recoil (0-100) -> right-stick units, per unit
+ *   kickDelayMs        how long after the trigger before recoil actually starts
+ *   semiFireCapRpm     server-side cap on semi-auto fire rate (rapid fire limit)
+ *   aimAssist          shape of the game's aim assist, drives sticky-aim defaults
+ */
+
+const GAMES = [
+  {
+    id: 'cod-bo6',
+    name: 'Call of Duty: Black Ops 6',
+    family: 'cod',
+    referenceFov: 80,
+    referenceSens: 6,
+    sensExponent: 1.0,
+    referenceAds: 0.9,
+    responseCurves: { standard: 1.18, linear: 1.0, dynamic: 1.12 },
+    recoilGain: 0.60,
+    kickDelayMs: 70,
+    semiFireCapRpm: 400,
+    aimAssist: { type: 'rotational', radius: 7, periodMs: 90 },
+    notes: 'Rotational aim assist rewards small continuous stick motion while ADS.'
+  },
+  {
+    id: 'cod-mw3',
+    name: 'Call of Duty: Modern Warfare III',
+    family: 'cod',
+    referenceFov: 80,
+    referenceSens: 6,
+    sensExponent: 1.0,
+    referenceAds: 0.85,
+    responseCurves: { standard: 1.2, linear: 1.0, dynamic: 1.12 },
+    recoilGain: 0.62,
+    kickDelayMs: 70,
+    semiFireCapRpm: 400,
+    aimAssist: { type: 'rotational', radius: 7, periodMs: 90 },
+    notes: 'Recoil is front-loaded; most guns need a ramp-in rather than a flat pull.'
+  },
+  {
+    id: 'warzone',
+    name: 'Call of Duty: Warzone',
+    family: 'cod',
+    referenceFov: 80,
+    referenceSens: 6,
+    sensExponent: 1.0,
+    referenceAds: 0.85,
+    responseCurves: { standard: 1.2, linear: 1.0, dynamic: 1.12 },
+    recoilGain: 0.68,
+    kickDelayMs: 80,
+    semiFireCapRpm: 400,
+    aimAssist: { type: 'rotational', radius: 6, periodMs: 100 },
+    notes: 'Longer engagement ranges - vertical pull matters more than horizontal.'
+  },
+  {
+    id: 'apex',
+    name: 'Apex Legends',
+    family: 'apex',
+    referenceFov: 90,
+    referenceSens: 4,
+    sensExponent: 0.9,
+    referenceAds: 1.0,
+    responseCurves: { standard: 1.15, linear: 1.0, dynamic: 1.1 },
+    recoilGain: 0.72,
+    kickDelayMs: 60,
+    semiFireCapRpm: 480,
+    aimAssist: { type: 'slowdown', radius: 5, periodMs: 110 },
+    notes: 'Fixed recoil patterns - pattern import gives far better results than a flat value.'
+  },
+  {
+    id: 'fortnite',
+    name: 'Fortnite',
+    family: 'fortnite',
+    referenceFov: 80,
+    referenceSens: 6,
+    sensExponent: 0.85,
+    referenceAds: 0.6,
+    responseCurves: { standard: 1.12, linear: 1.0, dynamic: 1.08 },
+    recoilGain: 0.55,
+    kickDelayMs: 90,
+    semiFireCapRpm: 360,
+    aimAssist: { type: 'slowdown', radius: 5, periodMs: 120 },
+    notes: 'First-shot accuracy is high; delay compensation until the 2nd-3rd round.'
+  },
+  {
+    id: 'bf2042',
+    name: 'Battlefield 2042',
+    family: 'battlefield',
+    referenceFov: 74,
+    referenceSens: 5,
+    sensExponent: 1.0,
+    referenceAds: 0.8,
+    responseCurves: { standard: 1.1, linear: 1.0, dynamic: 1.05 },
+    recoilGain: 0.75,
+    kickDelayMs: 50,
+    semiFireCapRpm: 450,
+    aimAssist: { type: 'slowdown', radius: 4, periodMs: 120 },
+    notes: 'High first-shot kick and strong horizontal drift on most LMGs.'
+  },
+  {
+    id: 'r6siege',
+    name: 'Rainbow Six Siege',
+    family: 'siege',
+    referenceFov: 84,
+    referenceSens: 12,
+    sensExponent: 1.1,
+    referenceAds: 0.5,
+    responseCurves: { standard: 1.05, linear: 1.0, dynamic: 1.05 },
+    recoilGain: 0.85,
+    kickDelayMs: 40,
+    semiFireCapRpm: 500,
+    aimAssist: { type: 'none', radius: 0, periodMs: 0 },
+    notes: 'No meaningful aim assist - sticky aim is disabled by default for this game.'
+  },
+  {
+    id: 'destiny2',
+    name: 'Destiny 2',
+    family: 'destiny',
+    referenceFov: 95,
+    referenceSens: 6,
+    sensExponent: 0.95,
+    referenceAds: 1.0,
+    responseCurves: { standard: 1.1, linear: 1.0, dynamic: 1.06 },
+    recoilGain: 0.58,
+    kickDelayMs: 60,
+    semiFireCapRpm: 450,
+    aimAssist: { type: 'magnetism', radius: 6, periodMs: 100 },
+    notes: 'Recoil direction stat maps directly to the horizontal drift value.'
+  },
+  {
+    id: 'pubg',
+    name: 'PUBG: Battlegrounds',
+    family: 'pubg',
+    referenceFov: 90,
+    referenceSens: 50,
+    sensExponent: 1.0,
+    referenceAds: 0.8,
+    responseCurves: { standard: 1.1, linear: 1.0, dynamic: 1.05 },
+    recoilGain: 0.9,
+    kickDelayMs: 50,
+    semiFireCapRpm: 480,
+    aimAssist: { type: 'none', radius: 0, periodMs: 0 },
+    notes: 'Heaviest recoil of the supported games; expect large vertical values.'
+  },
+  {
+    id: 'halo-infinite',
+    name: 'Halo Infinite',
+    family: 'halo',
+    referenceFov: 78,
+    referenceSens: 5,
+    sensExponent: 0.9,
+    referenceAds: 0.8,
+    responseCurves: { standard: 1.1, linear: 1.0, dynamic: 1.05 },
+    recoilGain: 0.5,
+    kickDelayMs: 80,
+    semiFireCapRpm: 420,
+    aimAssist: { type: 'magnetism', radius: 6, periodMs: 110 },
+    notes: 'Low recoil, strong magnetism - lean on sticky aim over anti-recoil.'
+  },
+  {
+    id: 'generic',
+    name: 'Other / custom game',
+    family: 'generic',
+    referenceFov: 85,
+    referenceSens: 6,
+    sensExponent: 1.0,
+    referenceAds: 0.8,
+    responseCurves: { standard: 1.12, linear: 1.0, dynamic: 1.08 },
+    recoilGain: 0.65,
+    kickDelayMs: 65,
+    semiFireCapRpm: 420,
+    aimAssist: { type: 'slowdown', radius: 5, periodMs: 110 },
+    notes: 'Neutral baseline for a game without a dedicated profile.'
+  }
+];
+
+const BY_ID = new Map(GAMES.map((g) => [g.id, g]));
+
+function getGame(id) {
+  return BY_ID.get(id) || BY_ID.get('generic');
+}
+
+function listGames() {
+  return GAMES.map(({ id, name, notes, aimAssist }) => ({ id, name, notes, aimAssist }));
+}
+
+/** Weapon categories and how they behave under compensation. */
+const CATEGORIES = {
+  ar: { label: 'Assault Rifle', stickyScale: 1.0, rapidFireDefault: false },
+  smg: { label: 'SMG', stickyScale: 1.15, rapidFireDefault: false },
+  lmg: { label: 'LMG', stickyScale: 0.85, rapidFireDefault: false },
+  marksman: { label: 'Marksman / DMR', stickyScale: 0.7, rapidFireDefault: true },
+  sniper: { label: 'Sniper', stickyScale: 0.0, rapidFireDefault: false },
+  pistol: { label: 'Pistol', stickyScale: 1.0, rapidFireDefault: true },
+  shotgun: { label: 'Shotgun', stickyScale: 0.9, rapidFireDefault: true },
+  battle: { label: 'Battle Rifle', stickyScale: 0.9, rapidFireDefault: false },
+  other: { label: 'Other', stickyScale: 1.0, rapidFireDefault: false }
+};
+
+function getCategory(id) {
+  return CATEGORIES[id] || CATEGORIES.other;
+}
+
+/* ---- core/weapons.js ---- */
+/**
+ * Weapon model + importers.
+ *
+ * A weapon is game-agnostic on purpose: every importer (preset catalog, JSON,
+ * CSV, AI text/screenshot extraction, manual form) funnels into `normalizeWeapon`
+ * so the tuner and the GPC emitter only ever see one shape.
+ */
+
+
+/** @typedef {{atMs:number, vertical:number, horizontal:number}} RecoilPhase */
+
+const FIRE_MODES = ['auto', 'semi', 'burst'];
+
+const CATEGORY_ALIASES = {
+  ar: 'ar', assault: 'ar', 'assault rifle': 'ar', rifle: 'ar', carbine: 'ar',
+  smg: 'smg', 'sub machine gun': 'smg', submachine: 'smg', 'submachine gun': 'smg', pdw: 'smg',
+  lmg: 'lmg', 'light machine gun': 'lmg', mg: 'lmg', machinegun: 'lmg',
+  dmr: 'marksman', marksman: 'marksman', 'marksman rifle': 'marksman', 'designated marksman': 'marksman',
+  sniper: 'sniper', 'sniper rifle': 'sniper', bolt: 'sniper', 'bolt action': 'sniper',
+  pistol: 'pistol', handgun: 'pistol', sidearm: 'pistol', revolver: 'pistol',
+  shotgun: 'shotgun', 'shot gun': 'shotgun',
+  br: 'battle', 'battle rifle': 'battle'
+};
+
+/** Header aliases accepted by the CSV/JSON importers. */
+const FIELD_ALIASES = {
+  name: ['name', 'weapon', 'weapon_name', 'gun', 'title', 'id'],
+  category: ['category', 'class', 'type', 'weapon_class', 'weapon_type', 'slot_type'],
+  game: ['game', 'title_id', 'source_game'],
+  fireMode: ['firemode', 'fire_mode', 'mode', 'trigger', 'firing_mode'],
+  burstCount: ['burst', 'burst_count', 'rounds_per_burst'],
+  rpm: ['rpm', 'fire_rate', 'firerate', 'rate_of_fire', 'rof', 'rounds_per_minute'],
+  magSize: ['mag', 'mag_size', 'magazine', 'magazine_size', 'clip', 'ammo'],
+  adsTimeMs: ['ads', 'ads_time', 'adstime', 'ads_ms', 'aim_down_sight_time', 'handling'],
+  vertical: ['vertical', 'vertical_recoil', 'recoil_vertical', 'v_recoil', 'recoil', 'kick', 'vrecoil'],
+  horizontal: ['horizontal', 'horizontal_recoil', 'recoil_horizontal', 'h_recoil', 'hrecoil', 'sway'],
+  drift: ['drift', 'recoil_direction', 'direction', 'bias', 'pull'],
+  firstShotKickMs: ['first_shot', 'first_shot_kick', 'kick_delay', 'first_shot_ms'],
+  notes: ['notes', 'comment', 'description']
+};
+
+function pick(obj, field) {
+  const lowered = {};
+  for (const [k, v] of Object.entries(obj)) lowered[k.toLowerCase().replace(/[\s-]+/g, '_')] = v;
+  for (const alias of FIELD_ALIASES[field] || []) {
+    const value = lowered[alias];
+    // Aliases are deliberately loose, so an alias can collide with a nested
+    // object on a normalised weapon (`recoil` -> the recoil block). Scalars only.
+    if (value === undefined || value === null || value === '' || typeof value === 'object') continue;
+    return value;
+  }
+  return undefined;
+}
+
+function num(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const n = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.+-]/g, ''));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clamp(v, lo, hi) {
+  return Math.min(hi, Math.max(lo, v));
+}
+
+function slugify(str) {
+  return String(str || 'weapon').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'weapon';
+}
+
+function normalizeCategory(value) {
+  if (!value) return 'other';
+  const key = String(value).toLowerCase().trim();
+  if (CATEGORY_ALIASES[key]) return CATEGORY_ALIASES[key];
+  for (const [alias, id] of Object.entries(CATEGORY_ALIASES)) {
+    if (key.includes(alias)) return id;
+  }
+  return 'other';
+}
+
+function normalizeDrift(value) {
+  if (value === undefined || value === null || value === '') return 0;
+  if (typeof value === 'number') return clamp(value, -1, 1);
+  const key = String(value).toLowerCase().trim();
+  if (key.startsWith('l')) return -1;
+  if (key.startsWith('r')) return 1;
+  if (key.startsWith('n') || key.startsWith('c')) return 0;
+  const n = parseFloat(key);
+  return Number.isFinite(n) ? clamp(n, -1, 1) : 0;
+}
+
+function normalizeFireMode(value, rpm) {
+  const key = String(value || '').toLowerCase();
+  if (key.startsWith('semi') || key.startsWith('single')) return 'semi';
+  if (key.startsWith('burst')) return 'burst';
+  if (key.startsWith('auto') || key.startsWith('full')) return 'auto';
+  return rpm && rpm > 0 ? 'auto' : 'auto';
+}
+
+/**
+ * Recoil stats arrive on wildly different scales depending on the source: a 0-1
+ * float, a 0-10 rating, a 0-100 index, or raw degrees. Fold them all onto 0-100.
+ */
+function normalizeRecoilScale(value, hint) {
+  const n = num(value, undefined);
+  if (n === undefined) return undefined;
+  if (hint === 'percent' || n > 100) return clamp(n > 100 ? n / 10 : n, 0, 100);
+  if (n <= 1 && n > 0 && !Number.isInteger(n)) return clamp(n * 100, 0, 100); // 0-1 float
+  if (n <= 10 && Number.isInteger(n) && hint === 'rating') return clamp(n * 10, 0, 100);
+  return clamp(n, 0, 100);
+}
+
+function normalizePattern(raw) {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const phases = raw
+    .map((p, i) => {
+      if (Array.isArray(p)) return { atMs: num(p[0], i * 100), vertical: num(p[1], 0), horizontal: num(p[2], 0) };
+      return {
+        atMs: num(p.atMs ?? p.at ?? p.t ?? p.ms ?? p.time, i * 100),
+        vertical: normalizeRecoilScale(p.vertical ?? p.v ?? p.y, 0) ?? 0,
+        horizontal: normalizeRecoilScale(p.horizontal ?? p.h ?? p.x, 0) ?? 0
+      };
+    })
+    .filter((p) => Number.isFinite(p.atMs))
+    .sort((a, b) => a.atMs - b.atMs);
+  return phases.length ? phases : null;
+}
+
+/**
+ * Per-weapon overrides.
+ *
+ * Anything set here replaces what the tuner calculated for that one weapon.
+ * A key that is absent, null or '' means "leave it on auto", which is what
+ * lets the UI offer an auto/manual switch per field without a second flag.
+ */
+const OVERRIDE_SPEC = {
+  antiRecoilVertical: { type: 'int', min: 0, max: 100, label: 'Vertical push' },
+  antiRecoilHorizontal: { type: 'int', min: -60, max: 60, label: 'Horizontal push' },
+  kickMs: { type: 'int', min: 0, max: 800, label: 'Start delay (ms)' },
+  releaseThreshold: { type: 'int', min: 5, max: 100, label: 'Release threshold' },
+  sticky: { type: 'mode', values: ['auto', 'on', 'off'], label: 'Sticky aim' },
+  stickyRadius: { type: 'int', min: 1, max: 20, label: 'Sticky radius' },
+  stickyPeriodMs: { type: 'int', min: 20, max: 400, label: 'Sticky step (ms)' },
+  rapidFire: { type: 'mode', values: ['auto', 'on', 'off'], label: 'Rapid fire' }
+};
+
+function normalizeOverrides(raw = {}) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [key, spec] of Object.entries(OVERRIDE_SPEC)) {
+    const value = raw[key];
+    if (value === undefined || value === null || value === '' || value === 'auto') continue;
+    if (spec.type === 'mode') {
+      if (spec.values.includes(value)) out[key] = value;
+    } else {
+      const n = num(value, undefined);
+      if (n !== undefined) out[key] = Math.round(clamp(n, spec.min, spec.max));
+    }
+  }
+  return out;
+}
+
+function normalizeAttachments(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((a) => {
+      if (typeof a === 'string') return { name: a, recoilVertical: 0, recoilHorizontal: 0, rpm: 0, adsTime: 0 };
+      return {
+        name: String(a.name || a.attachment || 'attachment'),
+        // Modifiers are fractions: -0.15 means "cuts 15% of the recoil".
+        recoilVertical: clamp(num(a.recoilVertical ?? a.vertical ?? a.recoil, 0), -0.9, 2),
+        recoilHorizontal: clamp(num(a.recoilHorizontal ?? a.horizontal, 0), -0.9, 2),
+        rpm: clamp(num(a.rpm ?? a.fireRate, 0), -0.5, 1),
+        adsTime: clamp(num(a.adsTime ?? a.ads, 0), -0.9, 2)
+      };
+    })
+    .slice(0, 12);
+}
+
+/**
+ * Coerce anything weapon-shaped into the canonical model.
+ * Always returns a weapon; problems are reported in `warnings`.
+ */
+function normalizeWeapon(raw = {}, { game = 'generic' } = {}) {
+  const warnings = [];
+  const name = String(pick(raw, 'name') ?? raw.name ?? 'Unnamed weapon').trim() || 'Unnamed weapon';
+  const gameId = String(pick(raw, 'game') ?? game ?? 'generic');
+  const resolvedGame = getGame(gameId).id;
+  if (gameId && resolvedGame === 'generic' && gameId !== 'generic') {
+    warnings.push(`Unknown game "${gameId}" - using the generic profile.`);
+  }
+
+  const category = normalizeCategory(pick(raw, 'category') ?? raw.category);
+  if (category === 'other') warnings.push('Weapon class not recognised - falling back to neutral handling.');
+
+  let rpm = num(pick(raw, 'rpm'), undefined);
+  if (rpm === undefined) {
+    rpm = defaultRpmFor(category);
+    warnings.push(`No fire rate supplied - assuming ${rpm} RPM for a ${getCategory(category).label}.`);
+  }
+  rpm = clamp(rpm, 30, 2000);
+
+  const fireMode = normalizeFireMode(pick(raw, 'fireMode') ?? raw.fireMode, rpm);
+  const scaleHint = raw.recoilScale || raw.scale;
+
+  // A weapon that has already been through here carries recoil.*; a freshly
+  // imported row carries flat columns. Nested wins so edits round-trip intact.
+  let vertical = normalizeRecoilScale(raw.recoil?.vertical ?? pick(raw, 'vertical'), scaleHint);
+  let horizontal = normalizeRecoilScale(raw.recoil?.horizontal ?? pick(raw, 'horizontal'), scaleHint);
+  if (vertical === undefined) {
+    vertical = defaultRecoilFor(category);
+    warnings.push(`No vertical recoil supplied - using the ${getCategory(category).label} baseline (${vertical}/100).`);
+  }
+  if (horizontal === undefined) horizontal = Math.round(vertical * 0.25);
+
+  const pattern = normalizePattern(raw.pattern ?? raw.recoil?.pattern ?? raw.recoilPattern);
+
+  const weapon = {
+    id: raw.id && typeof raw.id === 'string' && raw.id.includes('-') ? raw.id : `${resolvedGame}-${slugify(name)}`,
+    name,
+    game: resolvedGame,
+    category,
+    fireMode,
+    burstCount: clamp(Math.round(num(pick(raw, 'burstCount'), fireMode === 'burst' ? 3 : 0)), 0, 10),
+    rpm: Math.round(rpm),
+    magSize: Math.round(clamp(num(pick(raw, 'magSize'), 30), 1, 300)),
+    adsTimeMs: Math.round(clamp(num(pick(raw, 'adsTimeMs'), defaultAdsFor(category)), 40, 1200)),
+    recoil: {
+      vertical: Math.round(vertical),
+      horizontal: Math.round(horizontal),
+      drift: normalizeDrift(raw.recoil?.drift ?? pick(raw, 'drift')),
+      firstShotKickMs: Math.round(clamp(num(raw.recoil?.firstShotKickMs ?? pick(raw, 'firstShotKickMs'), 0), 0, 600)),
+      pattern
+    },
+    attachments: normalizeAttachments(raw.attachments),
+    overrides: normalizeOverrides(raw.overrides),
+    notes: String(pick(raw, 'notes') ?? '').slice(0, 400),
+    source: raw.source || 'manual',
+    confidence: raw.confidence === undefined ? undefined : clamp(num(raw.confidence, 0.5), 0, 1)
+  };
+
+  // Warnings describe what this pass had to guess. They are never inherited:
+  // re-normalising an edited weapon must not stack the same note again.
+  weapon.warnings = [...new Set(warnings)];
+  return weapon;
+}
+
+function defaultRpmFor(category) {
+  return { ar: 650, smg: 850, lmg: 600, marksman: 350, sniper: 45, pistol: 400, shotgun: 90, battle: 450, other: 600 }[category] ?? 600;
+}
+
+function defaultRecoilFor(category) {
+  return { ar: 45, smg: 38, lmg: 60, marksman: 30, sniper: 70, pistol: 25, shotgun: 55, battle: 50, other: 40 }[category] ?? 40;
+}
+
+function defaultAdsFor(category) {
+  return { ar: 260, smg: 200, lmg: 420, marksman: 320, sniper: 520, pistol: 180, shotgun: 240, battle: 300, other: 260 }[category] ?? 260;
+}
+
+/* ------------------------------------------------------------------ */
+/* Importers                                                           */
+/* ------------------------------------------------------------------ */
+
+function importFromJson(text, { game = 'generic' } = {}) {
+  let data;
+  try {
+    data = typeof text === 'string' ? JSON.parse(text) : text;
+  } catch (err) {
+    throw new Error(`That is not valid JSON: ${err.message}`);
+  }
+  const rows = Array.isArray(data)
+    ? data
+    : Array.isArray(data.weapons)
+      ? data.weapons
+      : Array.isArray(data.loadout)
+        ? data.loadout
+        : [data];
+  return rows.map((row) => normalizeWeapon({ ...row, source: row.source || 'json' }, { game }));
+}
+
+/** Minimal RFC4180-ish CSV parser - handles quoted fields and embedded commas. */
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  const src = String(text).replace(/\r\n?/g, '\n');
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (quoted) {
+      if (c === '"') {
+        if (src[i + 1] === '"') { field += '"'; i++; } else quoted = false;
+      } else field += c;
+      continue;
+    }
+    if (c === '"') quoted = true;
+    else if (c === ',' || c === '\t') { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((cell) => String(cell).trim() !== ''));
+}
+
+function importFromCsv(text, { game = 'generic' } = {}) {
+  const rows = parseCsv(text);
+  if (rows.length < 2) throw new Error('CSV needs a header row and at least one weapon row.');
+  const headers = rows[0].map((h) => h.trim());
+  return rows.slice(1).map((cells) => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (cells[i] ?? '').trim(); });
+    obj.source = 'csv';
+    return normalizeWeapon(obj, { game });
+  });
+}
+
+/**
+ * Best-effort offline parser for free text like
+ *   "MCW, assault rifle, 750 rpm, vertical recoil 42, drifts right".
+ * Used as the fallback when no Anthropic API key is configured.
+ */
+function importFromTextHeuristic(text, { game = 'generic' } = {}) {
+  const chunks = String(text)
+    .split(/\n{2,}|\n(?=[-*\d]\s)|\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const weapons = [];
+  for (const chunk of chunks) {
+    const rpm = /(\d{2,4})\s*(?:rpm|rounds?\s*per\s*min)/i.exec(chunk);
+    const vertical = /(?:vertical|v)[\s-]*recoil[^\d]{0,8}(\d{1,3})/i.exec(chunk);
+    const horizontal = /(?:horizontal|h)[\s-]*recoil[^\d]{0,8}(\d{1,3})/i.exec(chunk);
+    const mag = /(\d{1,3})\s*(?:round|rnd|mag|magazine)/i.exec(chunk);
+    const nameMatch = /^[-*\d.\s]*([A-Za-z0-9][\w .'/-]{1,30}?)(?=\s*[,:(-]|\s+\d|\s*$)/.exec(chunk);
+    const category = normalizeCategory(
+      /(assault rifle|battle rifle|sniper|shotgun|marksman|pistol|revolver|smg|lmg|dmr|ar\b)/i.exec(chunk)?.[1]
+    );
+    if (!rpm && !vertical && !nameMatch) continue;
+    weapons.push(normalizeWeapon({
+      name: (nameMatch?.[1] || 'Imported weapon').trim(),
+      category,
+      rpm: rpm ? Number(rpm[1]) : undefined,
+      vertical: vertical ? Number(vertical[1]) : undefined,
+      horizontal: horizontal ? Number(horizontal[1]) : undefined,
+      magSize: mag ? Number(mag[1]) : undefined,
+      fireMode: /semi|single/i.test(chunk) ? 'semi' : /burst/i.test(chunk) ? 'burst' : 'auto',
+      drift: /drift(?:s|ing)?\s*(left|right)/i.exec(chunk)?.[1],
+      notes: chunk.slice(0, 200),
+      source: 'text',
+      confidence: 0.4
+    }, { game }));
+  }
+  if (!weapons.length) throw new Error('Could not find a weapon in that text. Add a name, a fire rate and a recoil value.');
+  return weapons;
+}
+
+/* ---- core/catalog.js ---- */
+/**
+ * Bundled starter catalog.
+ *
+ * These are community-style estimates so you have something to generate from on
+ * a fresh install - they are NOT extracted from any game's files and they drift
+ * every balance patch. Treat a preset as a starting point, then trim the numbers
+ * in the tuner (or import your own data) once you have seen it on the range.
+ *
+ * Row format: [name, category, fireMode, rpm, vertical, horizontal, drift, magSize, adsMs]
+ *   vertical / horizontal : 0-100 normalised recoil
+ *   drift                 : -1 pulls left, 0 straight, 1 pulls right
+ */
+
+
+const ROWS = {
+  'cod-bo6': [
+    ['XM4', 'ar', 'auto', 703, 40, 12, 0.2, 30, 250],
+    ['AK-74', 'ar', 'auto', 600, 52, 16, -0.3, 30, 270],
+    ['C9', 'smg', 'auto', 845, 34, 14, 0.1, 32, 200],
+    ['Jackal PDW', 'smg', 'auto', 909, 38, 15, 0.3, 30, 195],
+    ['PU-21', 'lmg', 'auto', 750, 58, 18, -0.2, 75, 400],
+    ['SWAT 5.56', 'battle', 'burst', 800, 44, 10, 0.1, 30, 260],
+    ['DM-10', 'marksman', 'semi', 300, 30, 8, 0, 20, 300],
+    ['LW3A1 Frostline', 'sniper', 'semi', 40, 72, 6, 0, 5, 560]
+  ],
+  'cod-mw3': [
+    ['MCW', 'ar', 'auto', 750, 38, 11, 0.1, 30, 255],
+    ['SVA 545', 'ar', 'auto', 705, 45, 13, -0.2, 30, 265],
+    ['Holger 556', 'ar', 'auto', 705, 42, 12, 0.2, 30, 270],
+    ['Striker', 'smg', 'auto', 857, 33, 15, 0.3, 32, 205],
+    ['Rival-9', 'smg', 'auto', 882, 30, 13, 0.1, 30, 195],
+    ['Holger 26', 'lmg', 'auto', 698, 55, 17, -0.2, 60, 380],
+    ['MTZ Interceptor', 'marksman', 'semi', 320, 34, 9, 0, 10, 310],
+    ['KATT-AMR', 'sniper', 'semi', 38, 78, 7, 0, 7, 600]
+  ],
+  warzone: [
+    ['Superi 46', 'smg', 'auto', 900, 36, 16, 0.2, 32, 200],
+    ['BAL-27', 'ar', 'auto', 720, 44, 12, 0.1, 30, 260],
+    ['Kar98k', 'sniper', 'semi', 45, 70, 6, 0, 5, 520],
+    ['Pulemyot 762', 'lmg', 'auto', 620, 62, 19, -0.3, 100, 430],
+    ['TAQ Evolvere', 'lmg', 'auto', 705, 57, 16, 0.2, 75, 410],
+    ['WSP Swarm', 'smg', 'auto', 1200, 42, 20, 0.4, 50, 190]
+  ],
+  apex: [
+    ['R-301 Carbine', 'ar', 'auto', 810, 34, 12, 0.2, 28, 250],
+    ['Flatline', 'ar', 'auto', 600, 52, 20, -0.4, 30, 280],
+    ['R-99', 'smg', 'auto', 1080, 40, 18, 0.3, 27, 210],
+    ['Volt SMG', 'smg', 'auto', 720, 30, 12, 0.2, 26, 215],
+    ['Spitfire', 'lmg', 'auto', 540, 46, 14, -0.2, 35, 380],
+    ['G7 Scout', 'marksman', 'semi', 240, 32, 8, 0, 20, 300],
+    ['Wingman', 'pistol', 'semi', 156, 48, 10, 0, 6, 220]
+  ],
+  fortnite: [
+    ['Assault Rifle', 'ar', 'auto', 400, 30, 14, 0, 30, 280],
+    ['Striker AR', 'ar', 'auto', 420, 28, 12, 0.1, 30, 270],
+    ['Ranger Shotgun', 'shotgun', 'semi', 90, 50, 10, 0, 6, 250],
+    ['SMG', 'smg', 'auto', 720, 34, 18, 0.2, 30, 200],
+    ['Hammer Pump', 'shotgun', 'semi', 60, 56, 8, 0, 5, 260],
+    ['Hunting Rifle', 'sniper', 'semi', 60, 62, 6, 0, 1, 480]
+  ],
+  bf2042: [
+    ['AK-24', 'ar', 'auto', 600, 46, 16, -0.2, 30, 260],
+    ['M5A3', 'ar', 'auto', 700, 42, 14, 0.2, 30, 250],
+    ['PP-29', 'smg', 'auto', 750, 36, 16, 0.3, 55, 210],
+    ['LCMG', 'lmg', 'auto', 550, 60, 20, -0.3, 100, 420],
+    ['DM7', 'marksman', 'semi', 300, 36, 10, 0, 20, 320],
+    ['SWS-10', 'sniper', 'semi', 50, 74, 8, 0, 5, 540]
+  ],
+  r6siege: [
+    ['R4-C', 'ar', 'auto', 860, 48, 14, 0.2, 30, 200],
+    ['AK-12', 'ar', 'auto', 850, 52, 16, -0.2, 30, 210],
+    ['MP5', 'smg', 'auto', 800, 34, 12, 0.1, 30, 190],
+    ['Vector .45 ACP', 'smg', 'auto', 1200, 30, 15, 0.2, 25, 185],
+    ['M249', 'lmg', 'auto', 650, 58, 18, -0.3, 100, 380],
+    ['Deagle', 'pistol', 'semi', 300, 60, 10, 0, 7, 200]
+  ],
+  destiny2: [
+    ['Gnawing Hunger', 'ar', 'auto', 600, 38, 14, 0.3, 46, 240],
+    ['Ammit AR2', 'ar', 'auto', 720, 34, 12, -0.2, 36, 230],
+    ['The Messenger', 'battle', 'semi', 340, 40, 10, 0.1, 15, 260],
+    ['Riptide', 'shotgun', 'semi', 140, 48, 10, 0, 6, 240],
+    ['Funnelweb', 'smg', 'auto', 900, 30, 14, 0.2, 40, 200],
+    ['Izanagi’s Burden', 'sniper', 'semi', 72, 66, 6, 0, 4, 500]
+  ],
+  pubg: [
+    ['M416', 'ar', 'auto', 700, 52, 18, 0.1, 30, 260],
+    ['Beryl M762', 'ar', 'auto', 700, 68, 24, -0.3, 30, 270],
+    ['AKM', 'ar', 'auto', 600, 64, 22, -0.2, 30, 280],
+    ['UMP45', 'smg', 'auto', 600, 40, 16, 0.2, 25, 210],
+    ['DP-28', 'lmg', 'auto', 550, 58, 20, -0.2, 47, 420],
+    ['Mini 14', 'marksman', 'semi', 400, 36, 10, 0, 20, 300]
+  ],
+  'halo-infinite': [
+    ['MA40 AR', 'ar', 'auto', 360, 26, 10, 0.1, 32, 240],
+    ['BR75', 'battle', 'burst', 400, 30, 8, 0, 36, 260],
+    ['Sidekick', 'pistol', 'semi', 420, 22, 8, 0, 12, 200],
+    ['Commando', 'ar', 'auto', 400, 40, 14, 0.2, 30, 250],
+    ['Sniper Rifle S2 AM', 'sniper', 'semi', 60, 60, 6, 0, 4, 500]
+  ]
+};
+
+const CACHE = new Map();
+
+function catalogFor(gameId) {
+  if (CACHE.has(gameId)) return CACHE.get(gameId);
+  const rows = ROWS[gameId] || [];
+  const weapons = rows.map(([name, category, fireMode, rpm, vertical, horizontal, drift, magSize, adsTimeMs]) =>
+    normalizeWeapon(
+      {
+        name,
+        category,
+        fireMode,
+        burstCount: fireMode === 'burst' ? 3 : 0,
+        rpm,
+        vertical,
+        horizontal,
+        drift,
+        magSize,
+        adsTimeMs,
+        source: 'preset',
+        confidence: 0.6,
+        notes: 'Community estimate - verify on the range and trim.'
+      },
+      { game: gameId }
+    )
+  );
+  CACHE.set(gameId, weapons);
+  return weapons;
+}
+
+function fullCatalog() {
+  return Object.fromEntries(Object.keys(ROWS).map((id) => [id, catalogFor(id)]));
+}
+
+function catalogGameIds() {
+  return Object.keys(ROWS);
+}
+
+/* ---- core/tuning.js ---- */
+/**
+ * Stats -> script parameters.
+ *
+ * The whole tuner is one multiplier chain applied to a weapon's normalised
+ * recoil, plus a 4-phase timeline that describes how the correction ramps in.
+ * Every step pushes a human-readable line into `diagnostics` so the UI and the
+ * generated script header can explain where a number came from.
+ */
+
+
+
+const DEFAULT_PROFILE = {
+  controller: 'xbox',          // 'xbox' | 'playstation'
+  sensitivity: 6,
+  adsMultiplier: 0.85,
+  responseCurve: 'standard',   // 'standard' | 'linear' | 'dynamic'
+  verticalSensMultiplier: 1,   // games with a separate vertical stick multiplier
+  fov: 0,                      // 0 = "use the game default"; otherwise your FOV slider
+  fovRelativeAds: false,       // the game's "ADS sens relative to FOV" style setting
+  aimAssist: 'standard',       // 'off' | 'standard' | 'strong' | 'precision'
+  strength: 100,               // global trim, %
+  deadzone: 5,                 // in-game right stick deadzone, %
+
+  /**
+   * Anything the tuner does not model natively. Each entry names a setting from
+   * your game, records its value, and says what it should do to the script:
+   * { id, name, value, affects: 'vertical'|'horizontal'|'sticky'|'rapidFire'|'none', adjust: -75..100 }
+   * `adjust` is a percentage applied to that target, so a setting you know makes
+   * a gun kick 10% harder is {affects: 'vertical', adjust: 10}.
+   */
+  customSettings: [],
+  adsOnly: true,               // only compensate while aiming down sights
+  rapidFire: 'auto',           // 'auto' | 'on' | 'off'
+  hairTrigger: true,
+  antiDeadzone: false,
+  adsSlowPercent: 100,         // 100 = off; 80 = right stick runs at 80% while firing
+
+  /* ---- recoil control ---- */
+  horizontalEnabled: true,     // apply horizontal correction at all
+  rampSpeed: 'normal',         // 'instant' | 'fast' | 'normal' | 'slow' - how fast the pull fades in
+  kickDelayTrim: 0,            // ms added to (or taken off) the first-shot delay
+  releaseScale: 100,           // % trim on how much of your own stick input cancels the pull
+
+  /* ---- sticky aim ---- */
+  stickyAim: true,
+  stickyStrength: 100,         // % trim on the micro-movement radius
+  stickySpeed: 100,            // % - higher is a faster circle (shorter step)
+  stickyShape: 'circle',       // 'circle' | 'horizontal' | 'vertical' | 'diagonal'
+  stickyWhen: 'ads'            // 'ads' | 'ads_fire' | 'always'
+};
+
+const RAMP_SPEEDS = { instant: 0.25, fast: 0.6, normal: 1, slow: 1.7 };
+
+/** In-game aim assist setting -> how much artificial movement is still worth adding. */
+const AIM_ASSIST_SETTINGS = {
+  off: { label: 'Off / none', sticky: 0 },
+  standard: { label: 'Standard', sticky: 1 },
+  strong: { label: 'Strong / high', sticky: 0.8 },
+  precision: { label: 'Precision / focusing', sticky: 0.85 }
+};
+
+const CUSTOM_TARGETS = ['vertical', 'horizontal', 'sticky', 'rapidFire', 'none'];
+
+let customSeq = 0;
+
+/** Validate the user's own settings list; anything unusable is dropped, not guessed at. */
+function normalizeCustomSettings(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row) => row && String(row.name || '').trim())
+    .slice(0, 24)
+    .map((row) => ({
+      id: String(row.id || `cs${++customSeq}`).slice(0, 40),
+      name: String(row.name).trim().slice(0, 48),
+      value: String(row.value ?? '').trim().slice(0, 32),
+      affects: CUSTOM_TARGETS.includes(row.affects) ? row.affects : 'none',
+      adjust: clamp(Math.round(Number(row.adjust) || 0), -75, 100)
+    }));
+}
+const STICKY_SHAPES = ['circle', 'horizontal', 'vertical', 'diagonal'];
+const STICKY_WHEN = ['ads', 'ads_fire', 'always'];
+
+function normalizeProfile(raw = {}) {
+  const p = { ...DEFAULT_PROFILE, ...raw };
+  return {
+    controller: p.controller === 'playstation' ? 'playstation' : 'xbox',
+    game: p.game || 'generic',
+    sensitivity: clamp(Number(p.sensitivity) || DEFAULT_PROFILE.sensitivity, 0.5, 100),
+    adsMultiplier: clamp(Number(p.adsMultiplier) || DEFAULT_PROFILE.adsMultiplier, 0.2, 2),
+    responseCurve: ['standard', 'linear', 'dynamic'].includes(p.responseCurve) ? p.responseCurve : 'standard',
+    verticalSensMultiplier: clamp(Number(p.verticalSensMultiplier) || 1, 0.2, 3),
+    fov: p.fov ? clamp(Math.round(Number(p.fov)), 50, 150) : 0,
+    fovRelativeAds: Boolean(p.fovRelativeAds),
+    aimAssist: AIM_ASSIST_SETTINGS[p.aimAssist] ? p.aimAssist : 'standard',
+    customSettings: normalizeCustomSettings(p.customSettings),
+    strength: clamp(Math.round(Number(p.strength) ?? 100), 0, 200),
+    deadzone: clamp(Math.round(Number(p.deadzone) ?? 5), 0, 30),
+    adsOnly: p.adsOnly !== false,
+    rapidFire: ['auto', 'on', 'off'].includes(p.rapidFire) ? p.rapidFire : 'auto',
+    stickyAim: p.stickyAim !== false,
+    hairTrigger: p.hairTrigger !== false,
+    antiDeadzone: Boolean(p.antiDeadzone),
+    adsSlowPercent: clamp(Math.round(Number(p.adsSlowPercent) ?? 100), 50, 100),
+
+    horizontalEnabled: p.horizontalEnabled !== false,
+    rampSpeed: RAMP_SPEEDS[p.rampSpeed] ? p.rampSpeed : 'normal',
+    kickDelayTrim: clamp(Math.round(Number(p.kickDelayTrim) || 0), -150, 400),
+    releaseScale: clamp(Math.round(Number(p.releaseScale) ?? 100), 50, 200),
+
+    stickyStrength: clamp(Math.round(Number(p.stickyStrength) ?? 100), 0, 200),
+    stickySpeed: clamp(Math.round(Number(p.stickySpeed) ?? 100), 50, 200),
+    stickyShape: STICKY_SHAPES.includes(p.stickyShape) ? p.stickyShape : 'circle',
+    stickyWhen: STICKY_WHEN.includes(p.stickyWhen) ? p.stickyWhen : 'ads'
+  };
+}
+
+const round = (n) => Math.round(n);
+
+const TARGET_LABEL = {
+  vertical: 'the vertical pull',
+  horizontal: 'the horizontal pull',
+  sticky: 'the sticky aim radius',
+  rapidFire: 'the fire rate'
+};
+
+/** Combined multiplier from the player's own settings for one target. */
+function customFactor(profile, target) {
+  return (profile.customSettings || [])
+    .filter((setting) => setting.affects === target)
+    .reduce((acc, setting) => acc * (1 + setting.adjust / 100), 1);
+}
+
+/** Shots per minute -> ms between rounds. */
+function shotPeriodMs(rpm) {
+  return 60000 / clamp(rpm, 30, 2000);
+}
+
+/**
+ * @param {object} weapon  normalised weapon
+ * @param {object} rawProfile user settings
+ * @returns tuning parameters + the phase timeline the GPC emitter consumes
+ */
+function computeTuning(weapon, rawProfile = {}) {
+  const profile = normalizeProfile({ ...rawProfile, game: rawProfile.game || weapon.game });
+  const game = getGame(weapon.game || profile.game);
+  const category = getCategory(weapon.category);
+  const diagnostics = [];
+
+  /* ---- multiplier chain -------------------------------------------- */
+  const base = weapon.recoil.vertical;
+  const period = shotPeriodMs(weapon.rpm);
+
+  // Faster guns stack more kick between polls, so they need a bigger hold.
+  const rpmFactor = clamp(Math.sqrt(weapon.rpm / 600), 0.7, 1.5);
+
+  // Higher in-game sensitivity means the same stick deflection turns further,
+  // so the required stick value shrinks.
+  const sensFactor = clamp(Math.pow(game.referenceSens / profile.sensitivity, game.sensExponent), 0.4, 2.5);
+
+  // Same idea for the ADS multiplier.
+  const adsFactor = clamp(game.referenceAds / profile.adsMultiplier, 0.5, 2);
+
+  // Curves that soften small stick inputs need a larger raw value to move the same amount.
+  const curveFactor = game.responseCurves[profile.responseCurve] ?? 1;
+
+  // A separate vertical stick multiplier moves the vertical axis only.
+  const vertSensFactor = clamp(1 / profile.verticalSensMultiplier, 0.33, 3);
+
+  // FOV only changes the maths when the game ties aim speed to it ("relative"
+  // ADS sensitivity). On a fixed-sensitivity setup a wider FOV does not make the
+  // gun any easier to hold, however much it looks that way.
+  const fov = profile.fov || game.referenceFov;
+  const fovFactor = profile.fovRelativeAds ? clamp(game.referenceFov / fov, 0.5, 2) : 1;
+
+  const attachV = weapon.attachments.reduce((acc, a) => acc * (1 + a.recoilVertical), 1);
+  const attachH = weapon.attachments.reduce((acc, a) => acc * (1 + a.recoilHorizontal), 1);
+
+  const trim = profile.strength / 100;
+  const ov = weapon.overrides || {};
+  const overridden = [];
+  // What the tuner worked out on its own. Overrides replace the live values but
+  // never these, so the UI can always show "auto (32)" next to a hand-set field.
+  const auto = {};
+
+  const customV = customFactor(profile, 'vertical');
+  const customH = customFactor(profile, 'horizontal');
+
+  let peakV = clamp(
+    round(base * game.recoilGain * rpmFactor * sensFactor * adsFactor * curveFactor *
+          vertSensFactor * fovFactor * attachV * trim * customV),
+    0,
+    100
+  );
+
+  diagnostics.push(
+    `Vertical ${peakV}/100 = recoil ${base} x gain ${game.recoilGain} x rpm ${rpmFactor.toFixed(2)} ` +
+    `x sens ${sensFactor.toFixed(2)} x ads ${adsFactor.toFixed(2)} x curve ${curveFactor.toFixed(2)}` +
+    (attachV !== 1 ? ` x attachments ${attachV.toFixed(2)}` : '') +
+    (vertSensFactor !== 1 ? ` x vertical sens ${vertSensFactor.toFixed(2)}` : '') +
+    (fovFactor !== 1 ? ` x fov ${fovFactor.toFixed(2)}` : '') +
+    (attachV !== 1 ? '' : '') +
+    (trim !== 1 ? ` x trim ${trim.toFixed(2)}` : '') +
+    (customV !== 1 ? ` x your settings ${customV.toFixed(2)}` : '')
+  );
+
+  if (profile.fov && !profile.fovRelativeAds) {
+    diagnostics.push(`FOV ${profile.fov} noted but not applied - your game's aim speed is not tied to FOV, so the pull is unchanged.`);
+  } else if (fovFactor !== 1) {
+    diagnostics.push(`FOV ${fov} vs the ${game.referenceFov} these stats assume, with FOV-relative aim: pull scaled by ${fovFactor.toFixed(2)}.`);
+  }
+
+  auto.antiRecoilVertical = peakV;
+  if (ov.antiRecoilVertical !== undefined) {
+    diagnostics.push(`Vertical set by hand: ${peakV} -> ${ov.antiRecoilVertical} (calculated value ignored).`);
+    peakV = ov.antiRecoilVertical;
+    overridden.push('antiRecoilVertical');
+  }
+
+  // Horizontal is only worth correcting when the weapon pulls consistently to
+  // one side. Random shake averages out and fighting it just adds sway.
+  const drift = weapon.recoil.drift || 0;
+  // push against the drift: a weapon that pulls right needs a stick push left
+  let peakH =
+    clamp(
+      round(weapon.recoil.horizontal * game.recoilGain * rpmFactor * sensFactor * adsFactor * fovFactor *
+            attachH * trim * customH * Math.abs(drift)),
+      0,
+      60
+    ) * Math.sign(drift) * -1 || 0; // `|| 0` collapses -0, which would serialise oddly
+  if (!profile.horizontalEnabled && peakH !== 0) {
+    diagnostics.push(`Horizontal correction switched off in your settings (would have been ${peakH}).`);
+    peakH = 0;
+  } else if (drift === 0) {
+    diagnostics.push('Horizontal correction off: this weapon has no consistent drift direction.');
+  } else {
+    diagnostics.push(`Horizontal ${peakH} - countering a ${drift < 0 ? 'left' : 'right'} drift of ${Math.abs(drift).toFixed(2)}.`);
+  }
+
+  auto.antiRecoilHorizontal = peakH;
+  if (ov.antiRecoilHorizontal !== undefined) {
+    diagnostics.push(`Horizontal set by hand: ${peakH} -> ${ov.antiRecoilHorizontal}.`);
+    peakH = ov.antiRecoilHorizontal;
+    overridden.push('antiRecoilHorizontal');
+  }
+
+  /* ---- timeline ----------------------------------------------------- */
+  // Nothing to correct until the gun has actually kicked: at minimum one round,
+  // plus whatever first-shot delay the game and the weapon add.
+  let kickMs = round(clamp(
+    Math.max(weapon.recoil.firstShotKickMs, game.kickDelayMs, period * 0.9) + profile.kickDelayTrim,
+    0, 800
+  ));
+  if (profile.kickDelayTrim !== 0) {
+    diagnostics.push(`Start delay trimmed by ${profile.kickDelayTrim > 0 ? '+' : ''}${profile.kickDelayTrim}ms -> ${kickMs}ms.`);
+  }
+  auto.kickMs = kickMs;
+  if (ov.kickMs !== undefined) {
+    diagnostics.push(`Start delay set by hand: ${kickMs}ms -> ${ov.kickMs}ms.`);
+    kickMs = ov.kickMs;
+    overridden.push('kickMs');
+  }
+
+  // Most patterns reach full strength around the 4th round; ramp speed scales that.
+  const rampScale = RAMP_SPEEDS[profile.rampSpeed];
+  const rampMs = round(clamp(period * 4 * rampScale, 60, 900));
+  if (profile.rampSpeed !== 'normal') {
+    diagnostics.push(`Ramp speed "${profile.rampSpeed}" - full strength ${rampMs}ms after the pull instead of ${round(clamp(period * 4, 60, 900))}ms.`);
+  }
+  const phases = weapon.recoil.pattern
+    ? phasesFromPattern(weapon, { peakV, peakH, kickMs })
+    : syntheticPhases({ peakV, peakH, kickMs, rampMs });
+
+  diagnostics.push(
+    weapon.recoil.pattern
+      ? `Phase table built from the imported ${weapon.recoil.pattern.length}-point recoil pattern.`
+      : `No pattern data - ramping in over ${rampMs}ms after a ${kickMs}ms first-shot delay.`
+  );
+
+  /* ---- rapid fire ---------------------------------------------------- */
+  const rapidMode = ov.rapidFire || profile.rapidFire;
+  if (ov.rapidFire) overridden.push('rapidFire');
+  const wantsRapid =
+    rapidMode === 'on' ||
+    (rapidMode === 'auto' && weapon.fireMode === 'semi' && category.rapidFireDefault);
+  const rapidTargetRpm = clamp(
+    Math.min(weapon.rpm, game.semiFireCapRpm) * customFactor(profile, 'rapidFire'),
+    60,
+    game.semiFireCapRpm
+  );
+  const rapidPeriod = shotPeriodMs(rapidTargetRpm);
+  const holdMs = round(clamp(rapidPeriod * 0.45, 16, 60));
+  const restMs = round(Math.max(rapidPeriod - holdMs, 16));
+  const rapidFire = {
+    enabled: wantsRapid && weapon.fireMode !== 'auto',
+    holdMs,
+    restMs,
+    effectiveRpm: round(60000 / (holdMs + restMs)),
+    capRpm: game.semiFireCapRpm
+  };
+  if (rapidFire.enabled) {
+    diagnostics.push(`Rapid fire ${holdMs}ms hold / ${restMs}ms rest = ~${rapidFire.effectiveRpm} RPM (game cap ${game.semiFireCapRpm}).`);
+  } else if (weapon.fireMode === 'auto' && rapidMode === 'on') {
+    diagnostics.push('Rapid fire skipped: the weapon is already full-auto, pulsing the trigger would slow it down.');
+  }
+
+  /* ---- burst assist --------------------------------------------------- */
+  const burst = {
+    enabled: weapon.fireMode === 'burst' && weapon.burstCount > 1,
+    count: weapon.burstCount,
+    gapMs: round(clamp(period * 1.6, 60, 400))
+  };
+  if (burst.enabled) diagnostics.push(`Burst weapon: correction restarts every ${burst.count} rounds with a ${burst.gapMs}ms gap.`);
+
+  /* ---- sticky aim ----------------------------------------------------- */
+  const aimAssistSetting = AIM_ASSIST_SETTINGS[profile.aimAssist] || AIM_ASSIST_SETTINGS.standard;
+  const autoSticky =
+    profile.stickyAim && game.aimAssist.type !== 'none' && category.stickyScale > 0 && aimAssistSetting.sticky > 0;
+  if (profile.stickyAim && profile.aimAssist === 'off' && game.aimAssist.type !== 'none') {
+    diagnostics.push('Aim assist is off in your settings, so sticky aim is skipped - there is no assist to keep awake.');
+  }
+  let stickyEnabled = autoSticky;
+  if (ov.sticky) {
+    stickyEnabled = ov.sticky === 'on';
+    overridden.push('sticky');
+  }
+
+  const stickyTrim = (profile.stickyStrength / 100) * aimAssistSetting.sticky * customFactor(profile, 'sticky');
+  let stickyRadius = stickyEnabled
+    ? clamp(round((game.aimAssist.radius || 5) * category.stickyScale * stickyTrim || 0), 0, 20)
+    : 0;
+  let stickyPeriod = stickyEnabled
+    ? clamp(round((game.aimAssist.periodMs || 100) * (100 / profile.stickySpeed)), 20, 400)
+    : 0;
+
+  auto.sticky = autoSticky ? 'on' : 'off';
+  auto.stickyRadius = stickyRadius;
+  auto.stickyPeriodMs = stickyPeriod;
+  if (stickyEnabled && ov.stickyRadius !== undefined) {
+    stickyRadius = ov.stickyRadius;
+    overridden.push('stickyRadius');
+  }
+  if (stickyEnabled && ov.stickyPeriodMs !== undefined) {
+    stickyPeriod = ov.stickyPeriodMs;
+    overridden.push('stickyPeriodMs');
+  }
+  if (stickyEnabled && stickyRadius === 0) stickyEnabled = false;   // 0 radius is just "off"
+
+  const sticky = {
+    enabled: stickyEnabled,
+    radius: stickyEnabled ? stickyRadius : 0,
+    periodMs: stickyEnabled ? stickyPeriod : 0,
+    shape: profile.stickyShape,
+    when: profile.stickyWhen,
+    mode: game.aimAssist.type
+  };
+
+  const WHEN_LABEL = { ads: 'while aiming', ads_fire: 'while aiming and firing', always: 'all the time' };
+  if (stickyEnabled) {
+    diagnostics.push(
+      `Sticky aim: +/-${sticky.radius} ${sticky.shape} micro-movement every ${sticky.periodMs}ms ${WHEN_LABEL[sticky.when]}, ` +
+      `keeping ${game.aimAssist.type} aim assist alive.`
+    );
+  } else if (ov.sticky === 'off') {
+    diagnostics.push('Sticky aim switched off for this weapon.');
+  } else if (profile.stickyAim) {
+    diagnostics.push(`Sticky aim off for this weapon (${game.aimAssist.type === 'none' ? 'game has no aim assist' : category.label + ' handles better without it'}).`);
+  }
+
+  /* ---- misc ------------------------------------------------------------ */
+  const antiDeadzone = {
+    enabled: profile.antiDeadzone && profile.deadzone > 0,
+    value: clamp(round(profile.deadzone * 0.9), 0, 25)
+  };
+
+  // Releasing the correction when the player makes a real stick input keeps
+  // manual tracking from fighting the script.
+  let releaseThreshold = clamp(round((20 + peakV * 0.35) * (profile.releaseScale / 100)), 5, 100);
+  auto.releaseThreshold = releaseThreshold;
+  if (ov.releaseThreshold !== undefined) {
+    releaseThreshold = ov.releaseThreshold;
+    overridden.push('releaseThreshold');
+  }
+  if (profile.releaseScale !== 100 || ov.releaseThreshold !== undefined) {
+    diagnostics.push(`Your own stick input cancels the pull past ${releaseThreshold} units.`);
+  }
+
+  for (const setting of profile.customSettings) {
+    if (setting.affects === 'none') {
+      diagnostics.push(`Your setting "${setting.name}${setting.value ? `: ${setting.value}` : ''}" is recorded in the script header only.`);
+    } else {
+      diagnostics.push(
+        `Your setting "${setting.name}${setting.value ? `: ${setting.value}` : ''}" ` +
+        `${setting.adjust >= 0 ? 'raises' : 'lowers'} ${TARGET_LABEL[setting.affects]} by ${Math.abs(setting.adjust)}%.`
+      );
+    }
+  }
+
+  // A pull smaller than the in-game deadzone never reaches the game at all.
+  if (peakV > 0 && peakV <= profile.deadzone) {
+    diagnostics.push(
+      `WARNING: your in-game deadzone is ${profile.deadzone} and the pull is only ${peakV}, so the game will ` +
+      'ignore it. Turn on anti-deadzone, raise the strength trim, or lower the deadzone.'
+    );
+  }
+
+  return {
+    weaponId: weapon.id,
+    weaponName: weapon.name,
+    game: game.id,
+    profile,
+    antiRecoil: {
+      vertical: peakV,
+      horizontal: peakH,
+      kickMs,
+      rampMs,
+      releaseThreshold,
+      adsOnly: profile.adsOnly,
+      phases
+    },
+    rapidFire,
+    burst,
+    sticky,
+    antiDeadzone,
+    hairTrigger: { enabled: profile.hairTrigger, threshold: 12 },
+    adsSlow: { enabled: profile.adsSlowPercent < 100, percent: profile.adsSlowPercent },
+    shotPeriodMs: round(period),
+    diagnostics,
+    overridden,
+    auto,
+    confidence: estimateConfidence(weapon)
+  };
+}
+
+function estimateConfidence(weapon) {
+  let score = 0.35;
+  if (weapon.source === 'preset') score += 0.2;
+  if (weapon.recoil.pattern) score += 0.25;
+  if (weapon.attachments.length) score += 0.05;
+  if (weapon.warnings?.length) score -= 0.1 * weapon.warnings.length;
+  if (typeof weapon.confidence === 'number') score = (score + weapon.confidence) / 2;
+  return Number(clamp(score, 0.05, 0.95).toFixed(2));
+}
+
+/** Fixed 4-slot timeline: [until, vertical, horizontal]. The last slot sustains. */
+const PHASE_COUNT = 4;
+const SUSTAIN = 32000; // ms - effectively "forever" for one magazine
+
+function syntheticPhases({ peakV, peakH, kickMs, rampMs }) {
+  return [
+    { untilMs: kickMs, vertical: 0, horizontal: 0 },
+    { untilMs: kickMs + round(rampMs * 0.4), vertical: round(peakV * 0.65), horizontal: round(peakH * 0.5) },
+    { untilMs: kickMs + rampMs, vertical: round(peakV * 0.88), horizontal: round(peakH * 0.85) },
+    { untilMs: SUSTAIN, vertical: peakV, horizontal: peakH }
+  ];
+}
+
+/**
+ * Collapse an imported recoil pattern into the 4 slots the script carries.
+ * Pattern values are relative to the weapon's own peak, so they are rescaled
+ * onto the tuned peak rather than used raw.
+ */
+function phasesFromPattern(weapon, { peakV, peakH, kickMs }) {
+  const pattern = weapon.recoil.pattern;
+  const maxV = Math.max(...pattern.map((p) => Math.abs(p.vertical)), 1);
+  const maxH = Math.max(...pattern.map((p) => Math.abs(p.horizontal)), 1);
+  const endMs = Math.max(pattern[pattern.length - 1].atMs, kickMs + 200);
+  const usable = pattern.filter((p) => p.atMs >= kickMs);
+  const buckets = [];
+  const slots = PHASE_COUNT - 1; // slot 0 is always the pre-kick dead zone
+  for (let i = 0; i < slots; i++) {
+    const from = kickMs + ((endMs - kickMs) * i) / slots;
+    const to = kickMs + ((endMs - kickMs) * (i + 1)) / slots;
+    const inBucket = usable.filter((p) => p.atMs >= from && p.atMs <= to);
+    const sample = inBucket.length ? inBucket : [usable[Math.min(i, usable.length - 1)] || pattern[pattern.length - 1]];
+    const avgV = sample.reduce((s, p) => s + p.vertical, 0) / sample.length;
+    const avgH = sample.reduce((s, p) => s + p.horizontal, 0) / sample.length;
+    buckets.push({
+      untilMs: i === slots - 1 ? SUSTAIN : round(to),
+      vertical: clamp(round((avgV / maxV) * peakV), 0, 100),
+      horizontal: clamp(round((avgH / maxH) * Math.abs(peakH)), 0, 60) * (peakH < 0 ? -1 : 1)
+    });
+  }
+  return [{ untilMs: round(kickMs), vertical: 0, horizontal: 0 }, ...buckets];
+}
+
+/* ---- core/gpc.js ---- */
+/**
+ * GPC emitter.
+ *
+ * Produces a single Cronus (Zen / Titan) GPC script that carries one tuned
+ * profile per weapon slot, switchable on the controller. The script sticks to
+ * core GPC only - define / const arrays / main / combo / set_val / get_val /
+ * get_rtime / event_press / combo_run - so it compiles on any Cronus firmware
+ * without per-device extensions.
+ *
+ * Layout of the generated file:
+ *   1. header comment  - what was generated, from which stats, and how to trim it
+ *   2. layout defines  - controller bindings
+ *   3. switches        - global on/off values you can edit by hand
+ *   4. weapon tables   - one column per slot, PHASES entries per slot
+ *   5. main            - hair trigger -> anti-deadzone -> ADS slow -> anti-recoil
+ *   6. combos          - rapid fire, sticky aim, rumble feedback
+ */
+
+
+
+const MAX_SLOTS = 8;
+
+const LAYOUTS = {
+  xbox: {
+    label: 'Xbox / PC (XB1 layout)',
+    fire: 'XB1_RT', ads: 'XB1_LT', rx: 'XB1_RX', ry: 'XB1_RY',
+    up: 'XB1_UP', down: 'XB1_DOWN', left: 'XB1_LEFT', right: 'XB1_RIGHT',
+    mods: { view: 'XB1_VIEW', menu: 'XB1_MENU', lb: 'XB1_LB', rb: 'XB1_RB', ls: 'XB1_LS', rs: 'XB1_RS' }
+  },
+  playstation: {
+    label: 'PlayStation (PS4/PS5 layout)',
+    fire: 'PS4_R2', ads: 'PS4_L2', rx: 'PS4_RX', ry: 'PS4_RY',
+    up: 'PS4_UP', down: 'PS4_DOWN', left: 'PS4_LEFT', right: 'PS4_RIGHT',
+    mods: { view: 'PS4_SHARE', menu: 'PS4_OPTIONS', lb: 'PS4_L1', rb: 'PS4_R1', ls: 'PS4_L3', rs: 'PS4_R3' }
+  }
+};
+
+function listLayouts() {
+  return Object.entries(LAYOUTS).map(([id, l]) => ({
+    id,
+    label: l.label,
+    modButtons: Object.entries(l.mods).map(([key, name]) => ({ key, name }))
+  }));
+}
+
+/**
+ * The micro-movement each sticky-aim shape traces. Every step is additive and
+ * clamped, so it rides on top of whatever the player and the anti-recoil are
+ * already doing to the stick.
+ */
+const STICKY_STEPS = {
+  circle:     [['RX', 1], ['RY', 1], ['RX', -1], ['RY', -1]],
+  horizontal: [['RX', 1], ['RX', -1]],
+  vertical:   [['RY', 1], ['RY', -1]],
+  diagonal:   [['RX', 1, 'RY', 1], ['RX', -1, 'RY', 1], ['RX', -1, 'RY', -1], ['RX', 1, 'RY', -1]]
+};
+
+const STICKY_WHEN_TEXT = {
+  ads: 'while aiming down sights',
+  ads_fire: 'while aiming AND firing',
+  always: 'at all times'
+};
+
+function stickyComboBody(shape) {
+  const steps = STICKY_STEPS[shape] || STICKY_STEPS.circle;
+  const lines = [];
+  for (const step of steps) {
+    for (let i = 0; i < step.length; i += 2) {
+      const axis = `STICK_${step[i]}`;
+      const sign = step[i + 1] > 0 ? '+' : '-';
+      lines.push(`    set_val(${axis}, lim(get_val(${axis}) ${sign} sticky_r));`);
+    }
+    lines.push('    wait(sticky_ms);');
+  }
+  return lines;
+}
+
+function stickyCondition(when) {
+  if (when === 'always') return 'mods_on && STICKY_ON[slot]';
+  if (when === 'ads_fire') return 'mods_on && STICKY_ON[slot] && aiming && firing';
+  return 'mods_on && STICKY_ON[slot] && aiming';
+}
+
+const pad = (s, n) => String(s).padEnd(n);
+const gpcBool = (v) => (v ? 'TRUE' : 'FALSE');
+
+function sanitize(text, max = 60) {
+  return String(text).replace(/[^\x20-\x7E]/g, '').replace(/\*\//g, '* /').slice(0, max);
+}
+
+function table(type, name, values, comment) {
+  return `const ${type} ${name}[] = { ${values.join(', ')} };${comment ? `   // ${comment}` : ''}`;
+}
+
+/**
+ * @param {Array<{weapon:object, tuning:object}>} entries  one per slot
+ * @param {object} options { title, modButton, author, tickTune }
+ */
+function buildGpcScript(entries, options = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    throw new Error('Add at least one weapon before generating a script.');
+  }
+  const slots = entries.slice(0, MAX_SLOTS);
+  const first = slots[0].tuning;
+  const layout = LAYOUTS[first.profile.controller] || LAYOUTS.xbox;
+  const modKey = options.modButton && layout.mods[options.modButton] ? options.modButton : 'view';
+  const modButton = layout.mods[modKey];
+  const game = getGame(slots[0].weapon.game);
+  const title = sanitize(options.title || `${game.name} - ${slots.map((s) => s.weapon.name).join(' / ')}`, 58);
+  const author = sanitize(options.author || 'Sticky Aim Studio', 30);
+  const generated = options.now || new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+  const anyRapid = slots.some((s) => s.tuning.rapidFire.enabled);
+  const anySticky = slots.some((s) => s.tuning.sticky.enabled);
+  const anyBurst = slots.some((s) => s.tuning.burst.enabled);
+
+  /* ---------------- header ---------------- */
+  const head = [];
+  head.push('/* ==========================================================================');
+  head.push(` *  ${title}`);
+  head.push(' *  --------------------------------------------------------------------------');
+  head.push(` *  Game        : ${sanitize(game.name)}`);
+  head.push(` *  Controller  : ${layout.label}`);
+  head.push(` *  Generated   : ${generated} by Sticky Aim Weapon Studio`);
+  head.push(` *  Settings    : sens ${first.profile.sensitivity}, ADS x${first.profile.adsMultiplier}, ` +
+            `${first.profile.responseCurve} curve, deadzone ${first.profile.deadzone}, trim ${first.profile.strength}%`);
+  const extra = [];
+  if (first.profile.fov) extra.push(`FOV ${first.profile.fov}${first.profile.fovRelativeAds ? ' (relative ADS)' : ''}`);
+  if (first.profile.verticalSensMultiplier !== 1) extra.push(`vertical sens x${first.profile.verticalSensMultiplier}`);
+  if (first.profile.aimAssist !== 'standard') extra.push(`aim assist: ${first.profile.aimAssist}`);
+  if (extra.length) head.push(` *                ${sanitize(extra.join(', '), 90)}`);
+  if (first.profile.customSettings?.length) {
+    head.push(' *');
+    head.push(' *  YOUR OWN GAME SETTINGS');
+    first.profile.customSettings.forEach((setting) => {
+      const effect = setting.affects === 'none'
+        ? 'noted only'
+        : `${setting.adjust >= 0 ? '+' : ''}${setting.adjust}% ${setting.affects}`;
+      head.push(` *   ${pad(sanitize(setting.name, 26), 26)} ${pad(sanitize(setting.value, 18), 18)} ${effect}`);
+    });
+    head.push(' *   (re-generate from the app if you change any of these in game)');
+  }
+  head.push(' *');
+  head.push(' *  SLOTS');
+  const anyOverride = slots.some(({ tuning }) => (tuning.overridden || []).length > 0);
+  slots.forEach(({ weapon, tuning }, i) => {
+    const set = new Set(tuning.overridden || []);
+    const mark = (key, value) => `${value}${set.has(key) ? '*' : ''}`;
+    head.push(
+      ` *   ${i} ${pad(sanitize(weapon.name, 22), 22)} ${pad(getCategory(weapon.category).label, 14)}` +
+      ` V:${pad(mark('antiRecoilVertical', tuning.antiRecoil.vertical), 4)}` +
+      ` H:${pad(mark('antiRecoilHorizontal', tuning.antiRecoil.horizontal), 5)}` +
+      ` RF:${pad(mark('rapidFire', tuning.rapidFire.enabled ? tuning.rapidFire.effectiveRpm + 'rpm' : 'off'), 9)}` +
+      ` Sticky:${mark('sticky', tuning.sticky.enabled ? '+/-' + tuning.sticky.radius : 'off')}`
+    );
+  });
+  if (anyOverride) head.push(' *   (* = value you set by hand; the calculated one was ignored)');
+  head.push(' *');
+  head.push(' *  RECOIL CONTROL');
+  head.push(` *   Applied        : ${first.antiRecoil.adsOnly ? 'while aiming down sights' : 'whenever you fire'}`);
+  head.push(` *   Ramp speed     : ${first.profile.rampSpeed} (correction fades in over the PH_UNTIL phases)`);
+  head.push(` *   Horizontal     : ${first.profile.horizontalEnabled ? 'on, only for weapons with a consistent drift' : 'off (your setting)'}`);
+  head.push(` *   Release        : your own stick input past AR_RELEASE cancels the pull`);
+  head.push(' *');
+  head.push(' *  STICKY AIM');
+  if (anySticky) {
+    head.push(` *   Shape          : ${first.sticky.shape} micro-movement`);
+    head.push(` *   Active         : ${STICKY_WHEN_TEXT[first.sticky.when] || 'while aiming down sights'}`);
+    head.push(' *   Size / speed   : STICKY_R[] units per step, STICKY_MS[] ms per step');
+  } else {
+    head.push(' *   Off for every slot in this script.');
+  }
+  head.push(' *');
+  head.push(' *  CONTROLS');
+  head.push(` *   Hold ${pad(modButton, 12)} + D-PAD RIGHT/LEFT : next / previous weapon slot`);
+  head.push(` *   Hold ${pad(modButton, 12)} + D-PAD DOWN       : master on/off`);
+  head.push(` *   Hold ${pad(modButton, 12)} + D-PAD UP         : rumble out the current slot number`);
+  head.push(' *   (the modifier button itself is blocked while held, so nothing fires in game)');
+  head.push(' *');
+  head.push(' *  TRIMMING');
+  head.push(' *   Too much correction -> lower the numbers in PH_V[] for that slot.');
+  head.push(' *   Gun still climbs    -> raise them, ~2 units at a time.');
+  head.push(' *   Correction too soon -> raise the first value in PH_UNTIL[] for that slot.');
+  head.push(' *   Fighting your aim   -> lower AR_RELEASE[] for that slot.');
+  head.push(' *');
+  head.push(' *  HOW EACH SLOT WAS DERIVED');
+  slots.forEach(({ weapon, tuning }, i) => {
+    head.push(` *   [${i}] ${sanitize(weapon.name, 30)} - ${weapon.rpm} RPM, ${weapon.fireMode}, ` +
+              `recoil ${weapon.recoil.vertical}/${weapon.recoil.horizontal} (source: ${weapon.source}, confidence ${tuning.confidence})`);
+    tuning.diagnostics.forEach((d) => head.push(` *        ${sanitize(d, 100)}`));
+    (weapon.warnings || []).forEach((w) => head.push(` *        ! ${sanitize(w, 100)}`));
+  });
+  head.push(' *');
+  head.push(' *  These values are a calculated starting point, not a guarantee. Verify every');
+  head.push(' *  slot on a practice range and trim before you rely on it.');
+  head.push(' * ========================================================================== */');
+
+  /* ---------------- tables ---------------- */
+  const phUntil = [];
+  const phV = [];
+  const phH = [];
+  slots.forEach(({ tuning }) => {
+    const phases = tuning.antiRecoil.phases.slice(0, PHASE_COUNT);
+    while (phases.length < PHASE_COUNT) phases.push(phases[phases.length - 1]);
+    phases.forEach((p) => {
+      phUntil.push(Math.round(p.untilMs));
+      phV.push(Math.round(p.vertical));
+      phH.push(Math.round(p.horizontal));
+    });
+  });
+
+  const body = [];
+  body.push('');
+  body.push(`#pragma METAINFO("${title}", 1, 0, "${author}")`);
+  body.push('');
+  body.push('/* ---------------- controller layout ---------------- */');
+  body.push(`define BTN_FIRE   = ${layout.fire};`);
+  body.push(`define BTN_ADS    = ${layout.ads};`);
+  body.push(`define STICK_RX   = ${layout.rx};`);
+  body.push(`define STICK_RY   = ${layout.ry};   // positive = down, which is what fights muzzle climb`);
+  body.push(`define BTN_MOD    = ${modButton};`);
+  body.push(`define DPAD_UP    = ${layout.up};`);
+  body.push(`define DPAD_DOWN  = ${layout.down};`);
+  body.push(`define DPAD_LEFT  = ${layout.left};`);
+  body.push(`define DPAD_RIGHT = ${layout.right};`);
+  body.push('');
+  body.push('/* ---------------- global switches ---------------- */');
+  body.push(`define WEAPON_COUNT   = ${slots.length};`);
+  body.push(`define PHASES         = ${PHASE_COUNT};`);
+  body.push(`define ADS_ONLY       = ${gpcBool(first.antiRecoil.adsOnly)};   // compensate only while aiming down sights`);
+  body.push('define FIRE_POINT     = 10;      // trigger value that counts as "firing"');
+  body.push('define ADS_POINT      = 10;');
+  body.push(`define HAIR_TRIGGER   = ${gpcBool(first.hairTrigger.enabled)};`);
+  body.push(`define HAIR_POINT     = ${first.hairTrigger.threshold};      // pull past this and the trigger goes to 100%`);
+  body.push(`define ANTI_DEADZONE  = ${first.antiDeadzone.enabled ? first.antiDeadzone.value : 0};       // 0 = off`);
+  body.push(`define ADS_SLOW       = ${first.adsSlow.enabled ? first.adsSlow.percent : 100};     // right stick % while aiming (100 = off)`);
+  body.push(`define START_SLOT     = ${Math.min(Math.max(Number(options.startSlot) || 0, 0), slots.length - 1)};`);
+  if (anySticky) {
+    body.push(`/* sticky aim: ${first.sticky.shape} shape, active ${STICKY_WHEN_TEXT[first.sticky.when] || 'while aiming'} */`);
+  }
+  body.push('');
+  body.push('/* ---------------- weapon tables (one block of PHASES per slot) ---------------- */');
+  body.push(table('int16', 'PH_UNTIL', phUntil, 'ms since trigger pull that each phase ends'));
+  body.push(table('int8 ', 'PH_V', phV, 'vertical stick push for that phase'));
+  body.push(table('int8 ', 'PH_H', phH, 'horizontal stick push (+ = right)'));
+  body.push(table('int8 ', 'AR_RELEASE', slots.map((s) => s.tuning.antiRecoil.releaseThreshold), 'your own stick input that cancels the pull'));
+  body.push(table('int8 ', 'RF_ON', slots.map((s) => (s.tuning.rapidFire.enabled ? 1 : 0)), 'rapid fire per slot'));
+  body.push(table('int16', 'RF_HOLD', slots.map((s) => s.tuning.rapidFire.holdMs), 'ms the trigger is held'));
+  body.push(table('int16', 'RF_REST', slots.map((s) => s.tuning.rapidFire.restMs), 'ms the trigger is released'));
+  body.push(table('int8 ', 'STICKY_ON', slots.map((s) => (s.tuning.sticky.enabled ? 1 : 0)), 'sticky aim per slot'));
+  body.push(table('int8 ', 'STICKY_R', slots.map((s) => s.tuning.sticky.radius), 'micro-movement radius'));
+  body.push(table('int16', 'STICKY_MS', slots.map((s) => s.tuning.sticky.periodMs || 100), 'ms per step'));
+  if (anyBurst) {
+    body.push(table('int16', 'BURST_CYCLE', slots.map((s) => (s.tuning.burst.enabled
+      ? Math.round(s.tuning.shotPeriodMs * s.tuning.burst.count + s.tuning.burst.gapMs)
+      : 0)), 'burst length + gap; 0 = not a burst weapon'));
+  }
+  body.push('');
+  body.push('/* ---------------- state ---------------- */');
+  body.push('int slot;');
+  body.push('int mods_on;');
+  body.push('int fire_ms;');
+  body.push('int idx;');
+  body.push('int arv;');
+  body.push('int arh;');
+  body.push('int rf_hold;');
+  body.push('int rf_rest;');
+  body.push('int sticky_r;');
+  body.push('int sticky_ms;');
+  body.push('int blips;');
+  body.push('int firing;');
+  body.push('int aiming;');
+  body.push('');
+  body.push('init {');
+  body.push('    slot = START_SLOT;');
+  body.push('    mods_on = TRUE;');
+  body.push('    blips = START_SLOT + 1;');
+  body.push('}');
+  body.push('');
+  body.push('main {');
+  body.push('    /* ---- modifier layer: slot select + master toggle ---- */');
+  body.push('    if(get_val(BTN_MOD)) {');
+  body.push('        set_val(BTN_MOD, 0);            // swallow the button so the game never sees it');
+  body.push('        set_val(DPAD_UP, 0);');
+  body.push('        set_val(DPAD_DOWN, 0);');
+  body.push('        set_val(DPAD_LEFT, 0);');
+  body.push('        set_val(DPAD_RIGHT, 0);');
+  body.push('        if(event_press(DPAD_RIGHT)) {');
+  body.push('            slot = slot + 1;');
+  body.push('            if(slot >= WEAPON_COUNT) slot = 0;');
+  body.push('            blips = slot + 1;');
+  body.push('        }');
+  body.push('        if(event_press(DPAD_LEFT)) {');
+  body.push('            slot = slot - 1;');
+  body.push('            if(slot < 0) slot = WEAPON_COUNT - 1;');
+  body.push('            blips = slot + 1;');
+  body.push('        }');
+  body.push('        if(event_press(DPAD_DOWN)) {');
+  body.push('            if(mods_on) { mods_on = FALSE; blips = 3; }');
+  body.push('            else        { mods_on = TRUE;  blips = 1; }');
+  body.push('        }');
+  body.push('        if(event_press(DPAD_UP)) blips = slot + 1;');
+  body.push('    }');
+  body.push('');
+  body.push('    if(blips > 0 && !combo_running(FEEDBACK)) combo_run(FEEDBACK);');
+  body.push('');
+  body.push('    /* ---- hair trigger: kill the dead travel on the analog triggers ---- */');
+  body.push('    if(HAIR_TRIGGER && mods_on) {');
+  body.push('        if(get_val(BTN_FIRE) > HAIR_POINT) set_val(BTN_FIRE, 100);');
+  body.push('        if(get_val(BTN_ADS) > HAIR_POINT) set_val(BTN_ADS, 100);');
+  body.push('    }');
+  body.push('');
+  body.push('    if(get_val(BTN_FIRE) > FIRE_POINT) firing = TRUE; else firing = FALSE;');
+  body.push('    if(get_val(BTN_ADS) > ADS_POINT) aiming = TRUE; else aiming = FALSE;');
+  body.push('');
+  body.push('    /* every block below is gated on mods_on - master off passes the pad straight through */');
+  body.push('    /* ---- anti-deadzone: small stick inputs actually move the camera ---- */');
+  body.push('    if(mods_on && ANTI_DEADZONE > 0) {');
+  body.push('        if(get_val(STICK_RX) > 0 && get_val(STICK_RX) < ANTI_DEADZONE) set_val(STICK_RX, ANTI_DEADZONE);');
+  body.push('        if(get_val(STICK_RX) < 0 && get_val(STICK_RX) > (0 - ANTI_DEADZONE)) set_val(STICK_RX, 0 - ANTI_DEADZONE);');
+  body.push('        if(get_val(STICK_RY) > 0 && get_val(STICK_RY) < ANTI_DEADZONE) set_val(STICK_RY, ANTI_DEADZONE);');
+  body.push('        if(get_val(STICK_RY) < 0 && get_val(STICK_RY) > (0 - ANTI_DEADZONE)) set_val(STICK_RY, 0 - ANTI_DEADZONE);');
+  body.push('    }');
+  body.push('');
+  body.push('    /* ---- ADS slow: steadier tracking while aiming ---- */');
+  body.push('    if(mods_on && ADS_SLOW < 100 && aiming) {');
+  body.push('        set_val(STICK_RX, (get_val(STICK_RX) * ADS_SLOW) / 100);');
+  body.push('        set_val(STICK_RY, (get_val(STICK_RY) * ADS_SLOW) / 100);');
+  body.push('    }');
+  body.push('');
+  body.push('    /* ---- anti-recoil ---- */');
+  body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
+  body.push('        fire_ms = fire_ms + get_rtime();');
+  if (anyBurst) {
+    body.push('        if(BURST_CYCLE[slot] > 0 && fire_ms > BURST_CYCLE[slot]) fire_ms = 0;   // next burst starts clean');
+  }
+  body.push('        idx = slot * PHASES;');
+  body.push('        if(fire_ms < PH_UNTIL[idx]) {');
+  body.push('            arv = PH_V[idx];');
+  body.push('            arh = PH_H[idx];');
+  body.push('        } else if(fire_ms < PH_UNTIL[idx + 1]) {');
+  body.push('            arv = PH_V[idx + 1];');
+  body.push('            arh = PH_H[idx + 1];');
+  body.push('        } else if(fire_ms < PH_UNTIL[idx + 2]) {');
+  body.push('            arv = PH_V[idx + 2];');
+  body.push('            arh = PH_H[idx + 2];');
+  body.push('        } else {');
+  body.push('            arv = PH_V[idx + 3];');
+  body.push('            arh = PH_H[idx + 3];');
+  body.push('        }');
+  body.push('        /* your own stick input always wins past the release threshold */');
+  body.push('        if(abs(get_val(STICK_RY)) < AR_RELEASE[slot]) set_val(STICK_RY, lim(get_val(STICK_RY) + arv));');
+  body.push('        if(arh != 0 && abs(get_val(STICK_RX)) < AR_RELEASE[slot]) set_val(STICK_RX, lim(get_val(STICK_RX) + arh));');
+  body.push('    } else {');
+  body.push('        fire_ms = 0;');
+  body.push('    }');
+  body.push('');
+  if (anyRapid) {
+    body.push('    /* ---- rapid fire ---- */');
+    body.push('    if(mods_on && RF_ON[slot] && firing) {');
+    body.push('        rf_hold = RF_HOLD[slot];');
+    body.push('        rf_rest = RF_REST[slot];');
+    body.push('        combo_run(RAPID_FIRE);');
+    body.push('    } else if(combo_running(RAPID_FIRE)) {');
+    body.push('        combo_stop(RAPID_FIRE);');
+    body.push('    }');
+    body.push('');
+  }
+  if (anySticky) {
+    body.push('    /* ---- sticky aim: keep the game\'s aim assist bubble awake ---- */');
+    body.push(`    if(${stickyCondition(first.sticky.when)}) {`);
+    body.push('        sticky_r = STICKY_R[slot];');
+    body.push('        sticky_ms = STICKY_MS[slot];');
+    body.push('        combo_run(STICKY_AIM);');
+    body.push('    } else if(combo_running(STICKY_AIM)) {');
+    body.push('        combo_stop(STICKY_AIM);');
+    body.push('    }');
+    body.push('');
+  }
+  body.push('}');
+  body.push('');
+  body.push('/* clamp to the stick range so a correction never wraps around */');
+  body.push('function lim(value) {');
+  body.push('    if(value > 100) return 100;');
+  body.push('    if(value < -100) return -100;');
+  body.push('    return value;');
+  body.push('}');
+  body.push('');
+  if (anyRapid) {
+    body.push('combo RAPID_FIRE {');
+    body.push('    set_val(BTN_FIRE, 100);');
+    body.push('    wait(rf_hold);');
+    body.push('    set_val(BTN_FIRE, 0);');
+    body.push('    wait(rf_rest);');
+    body.push('    set_val(BTN_FIRE, 0);');
+    body.push('}');
+    body.push('');
+  }
+  if (anySticky) {
+    body.push(`/* ${first.sticky.shape} micro-movement - one full loop per ${STICKY_STEPS[first.sticky.shape]?.length || 4} steps */`);
+    body.push('combo STICKY_AIM {');
+    stickyComboBody(first.sticky.shape).forEach((line) => body.push(line));
+    body.push('}');
+    body.push('');
+  }
+  body.push('/* one rumble pulse per pending blip - slot 3 buzzes three times */');
+  body.push('combo FEEDBACK {');
+  body.push('    set_rumble(RUMBLE_A, 60);');
+  body.push('    wait(90);');
+  body.push('    reset_rumble();');
+  body.push('    wait(140);');
+  body.push('    blips = blips - 1;');
+  body.push('}');
+  body.push('');
+
+  return head.concat(body).join('\n');
+}
+
+function scriptFileName(entries, options = {}) {
+  const base = options.title
+    ? options.title
+    : entries.length === 1
+      ? `${entries[0].weapon.game}-${entries[0].weapon.name}`
+      : `${entries[0].weapon.game}-loadout-${entries.length}`;
+  return `${String(base).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'weapon'}.gpc`;
+}
+
+/* ---- core/coach.js ---- */
+/**
+ * Range-testing notes, written without a model.
+ *
+ * Shared by the server's AI coach (as its no-key fallback) and by the
+ * standalone build, which has no server to call at all.
+ */
+
+function offlineCoachNotes(entries) {
+  const lines = entries.map(({ weapon, tuning }) => {
+    const ar = tuning.antiRecoil;
+    const bullets = [
+      `- Confidence in the source stats: ${Math.round(tuning.confidence * 100)}%.`,
+      '- On the range: hold the trigger on a wall at about 20m and watch where the shots land.',
+      '- Landing above the dot means PH_V is too low, below the dot means too high. Trim 2 at a time.',
+      ar.horizontal === 0
+        ? '- No horizontal correction is applied; this weapon has no consistent drift.'
+        : `- Horizontal correction of ${ar.horizontal} counters its ${ar.horizontal > 0 ? 'left' : 'right'} walk.`
+    ];
+    if (ar.vertical > 60) {
+      bullets.push(`- ${ar.vertical} is a heavy pull. If your crosshair drags off target, cut the strength trim rather than the weapon stats.`);
+    }
+    if (tuning.sticky.enabled && tuning.sticky.radius > 10) {
+      bullets.push(`- Sticky aim at ${tuning.sticky.radius} is wide enough to feel. Drop it if your aim wanders at range.`);
+    }
+    if (tuning.rapidFire.enabled) {
+      bullets.push(`- Check the fire rate in game: ${tuning.rapidFire.effectiveRpm} RPM should not drop rounds.`);
+    }
+    return [`**${weapon.name}** (V:${ar.vertical} H:${ar.horizontal})`, ...bullets].join('\n');
+  });
+  return lines.join('\n\n');
+}
+
+
+window.stickyAimApi = async function stickyAimApi(path, body) {
+  const profile = () => normalizeProfile(body.profile || {});
+  const entries = () => {
+    const p = profile();
+    const weapons = Array.isArray(body.weapons) ? body.weapons : [];
+    if (!weapons.length) throw new Error('Add at least one weapon first.');
+    if (weapons.length > MAX_SLOTS) throw new Error('A script holds at most ' + MAX_SLOTS + ' weapon slots.');
+    return weapons.map((raw) => {
+      const weapon = normalizeWeapon(raw, { game: raw.game || p.game });
+      return { weapon, tuning: computeTuning(weapon, { ...p, game: weapon.game }) };
+    });
+  };
+
+  switch (path) {
+    case '/api/meta':
+      return {
+        games: listGames(),
+        categories: Object.entries(CATEGORIES).map(([id, c]) => ({ id, label: c.label })),
+        catalog: fullCatalog(),
+        layouts: listLayouts(),
+        defaultProfile: DEFAULT_PROFILE,
+        options: {
+          rampSpeeds: Object.keys(RAMP_SPEEDS),
+          stickyShapes: STICKY_SHAPES,
+          stickyWhen: STICKY_WHEN,
+          aimAssist: Object.entries(AIM_ASSIST_SETTINGS).map(([id, a]) => ({ id, label: a.label })),
+          customTargets: CUSTOM_TARGETS,
+          overrides: OVERRIDE_SPEC
+        },
+        maxSlots: MAX_SLOTS,
+        ai: { enabled: false, model: null }
+      };
+
+    case '/api/import': {
+      const game = body.game || 'generic';
+      if (body.kind === 'json') return { weapons: importFromJson(body.payload, { game }), mode: 'local' };
+      if (body.kind === 'csv') return { weapons: importFromCsv(body.payload, { game }), mode: 'local' };
+      if (body.kind === 'manual') return { weapons: [normalizeWeapon({ ...body.weapon, source: 'manual' }, { game })], mode: 'local' };
+      if (body.kind === 'text') {
+        return { weapons: importFromTextHeuristic(body.payload, { game }), mode: 'heuristic',
+                 notes: 'Read by the built-in parser. The AI importers need the local server.' };
+      }
+      if (body.kind === 'image') throw new Error('Screenshot import needs the local server and an API key.');
+      throw new Error('Unknown import kind "' + body.kind + '".');
+    }
+
+    case '/api/tune':
+      return { entries: entries() };
+
+    case '/api/generate': {
+      const list = entries();
+      const options = { title: body.title, author: body.author, modButton: body.modButton, startSlot: body.startSlot };
+      return { gpc: buildGpcScript(list, options), fileName: scriptFileName(list, options), entries: list };
+    }
+
+    case '/api/coach':
+      return { text: offlineCoachNotes(entries()), mode: 'offline' };
+
+    default:
+      throw new Error('No route for ' + path);
+  }
+};
+
+/* Sticky Aim Weapon Studio - front end.
+   State lives here; all maths happen server-side in core/ so the CLI, the tests
+   and the page can never disagree about what a weapon tunes to. */
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+const state = {
+  meta: null,
+  game: 'cod-mw3',
+  profile: {},
+  weapons: [],
+  entries: [],
+  script: '',
+  fileName: 'weapon.gpc',
+  selected: 0,
+  scriptOptions: { title: '', author: '', modButton: 'view', startSlot: 0 }
+};
+
+const SETUP_STORE = 'stickyaim.setups.v1';
+
+/* ------------------------------------------------------------------ */
+/* plumbing                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every call the page makes goes through here. The served app talks to the
+ * local Node server; the standalone single-file build installs its own
+ * transport on `window.stickyAimApi` and answers the same calls in-page.
+ */
+async function api(path, body) {
+  if (typeof window !== 'undefined' && window.stickyAimApi) return window.stickyAimApi(path, body);
+
+  const res = await fetch(path, body
+    ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
+    : undefined);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+let toastTimer;
+function toast(message, isError = false) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.classList.toggle('err', isError);
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 3200);
+}
+
+async function withBusy(button, fn) {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Working…';
+  try {
+    await fn();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
+
+/** Live text for each range control, so the sliders read as values not numbers. */
+const RANGE_LABELS = {
+  strength: (v) => `${v}%`,
+  releaseScale: (v) => (v === 100 ? 'normal' : v > 100 ? `${v}% (harder to cancel)` : `${v}% (easier to cancel)`),
+  stickyStrength: (v) => (Number(v) === 0 ? 'off' : `${v}%`),
+  stickySpeed: (v) => `${v}%`,
+  adsSlowPercent: (v) => (v >= 100 ? 'off' : `${v}%`)
+};
+
+const SHAPE_LABELS = {
+  circle: 'Circle — even coverage',
+  horizontal: 'Horizontal — left/right only',
+  vertical: 'Vertical — up/down only',
+  diagonal: 'Diagonal — corners, widest sweep'
+};
+
+const TARGET_LABELS = {
+  none: 'Just note it',
+  vertical: 'Vertical pull',
+  horizontal: 'Horizontal pull',
+  sticky: 'Sticky aim radius',
+  rapidFire: 'Fire rate'
+};
+
+/* Settings people actually have to think about, per game family. Starting points
+   for the "add common ones" button - all of them still need a value and a call
+   on what they should do. */
+const SUGGESTED_SETTINGS = {
+  cod: [
+    { name: 'Aim Response Curve Slope', value: '', affects: 'none' },
+    { name: 'ADS Sens Multiplier (low zoom)', value: '', affects: 'none' },
+    { name: 'Target Aim Assist', value: '', affects: 'sticky', adjust: -10 },
+    { name: 'Weapon Mount Activation', value: '', affects: 'none' }
+  ],
+  apex: [
+    { name: 'Per-optic ADS sensitivity', value: '', affects: 'none' },
+    { name: 'Deadzone setting', value: '', affects: 'none' },
+    { name: 'Response curve', value: '', affects: 'none' }
+  ],
+  generic: [
+    { name: 'Aim acceleration', value: '', affects: 'vertical', adjust: 10 },
+    { name: 'Scope / optic zoom', value: '', affects: 'vertical', adjust: 15 },
+    { name: 'Controller vibration', value: '', affects: 'none' }
+  ]
+};
+
+const WHEN_LABELS = {
+  ads: 'While aiming (ADS)',
+  ads_fire: 'While aiming and firing',
+  always: 'All the time'
+};
+
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ------------------------------------------------------------------ */
+/* boot                                                                */
+/* ------------------------------------------------------------------ */
+
+async function boot() {
+  state.meta = await api('/api/meta');
+  state.profile = { ...state.meta.defaultProfile };
+
+  $('#game').innerHTML = state.meta.games.map((g) => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+  $('#game').value = state.game;
+
+  $('#m-category').innerHTML = state.meta.categories.map((c) => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+  $('#p-controller').innerHTML = state.meta.layouts.map((l) => `<option value="${l.id}">${escapeHtml(l.label)}</option>`).join('');
+  $('#p-stickyShape').innerHTML = state.meta.options.stickyShapes
+    .map((id) => `<option value="${id}">${escapeHtml(SHAPE_LABELS[id] || id)}</option>`).join('');
+  $('#p-stickyWhen').innerHTML = state.meta.options.stickyWhen
+    .map((id) => `<option value="${id}">${escapeHtml(WHEN_LABELS[id] || id)}</option>`).join('');
+  $('#p-aimAssist').innerHTML = state.meta.options.aimAssist
+    .map((a) => `<option value="${a.id}">${escapeHtml(a.label)}</option>`).join('');
+
+  const badge = $('#ai-badge');
+  badge.textContent = state.meta.ai.enabled ? `AI: ${state.meta.ai.model}` : 'AI: off (no API key)';
+  badge.classList.toggle('on', state.meta.ai.enabled);
+  if (!state.meta.ai.enabled) {
+    $('#btn-shot').disabled = true;
+    $('#describe-mode').textContent = 'No API key - text will be parsed locally.';
+  }
+
+  syncProfileInputs();
+  renderCustomSettings();
+  renderSetupList();
+  renderCatalog();
+  renderSlots();
+  renderModButtons();
+  wire();
+}
+
+function syncProfileInputs() {
+  for (const [key, value] of Object.entries(state.profile)) {
+    const el = $(`#p-${key}`);
+    if (!el || Array.isArray(value)) continue;
+    if (el.type === 'checkbox') el.checked = Boolean(value);
+    else el.value = value;
+  }
+  for (const [key, format] of Object.entries(RANGE_LABELS)) {
+    const out = $(`#p-${key}-val`);
+    if (out) out.textContent = format(state.profile[key]);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* rendering                                                           */
+/* ------------------------------------------------------------------ */
+
+function renderCatalog() {
+  const list = state.meta.catalog[state.game] || [];
+  const box = $('#catalog');
+  if (!list.length) {
+    box.innerHTML = '<div class="empty">No bundled presets for this game yet - use Describe, JSON, CSV or Manual.</div>';
+    return;
+  }
+  box.innerHTML = list.map((w, i) => `
+    <button data-preset="${i}">
+      <span class="cname">${escapeHtml(w.name)}</span>
+      <span class="cmeta">${w.rpm} rpm · V${w.recoil.vertical} H${w.recoil.horizontal}</span>
+    </button>`).join('');
+}
+
+function renderSlots() {
+  const box = $('#slot-list');
+  $('#slot-count').textContent = `${state.weapons.length} / ${state.meta.maxSlots}`;
+  if (!state.weapons.length) {
+    box.innerHTML = '<div class="empty">No weapons yet.<br>Import one to start.</div>';
+    return;
+  }
+  box.innerHTML = state.weapons.map((w, i) => {
+    const t = state.entries[i]?.tuning;
+    return `
+      <div class="slot" aria-current="${i === state.selected}" data-slot="${i}">
+        <span class="idx">${i}</span>
+        <span>
+          <span class="name">${escapeHtml(w.name)}</span><br>
+          <span class="meta">${w.rpm}rpm${t ? ` · V${t.antiRecoil.vertical} H${t.antiRecoil.horizontal}` : ''} · ${escapeHtml(w.source)}</span>
+        </span>
+        <span>
+          <button class="drag" data-move="${i}" data-dir="-1" title="Move up">&#9650;</button>
+          <button class="drag" data-move="${i}" data-dir="1" title="Move down">&#9660;</button>
+          <button class="drag danger" data-remove="${i}" title="Remove">&times;</button>
+        </span>
+      </div>`;
+  }).join('');
+  renderStartSlots();
+}
+
+function renderModButtons() {
+  const layout = state.meta.layouts.find((l) => l.id === state.profile.controller) || state.meta.layouts[0];
+  $('#s-mod').innerHTML = layout.modButtons
+    .map((b) => `<option value="${b.key}">${escapeHtml(b.name)}</option>`).join('');
+  $('#s-mod').value = state.scriptOptions.modButton;
+}
+
+function renderStartSlots() {
+  $('#s-start').innerHTML = state.weapons
+    .map((w, i) => `<option value="${i}">${i} - ${escapeHtml(w.name)}</option>`).join('') || '<option value="0">0</option>';
+  $('#s-start').value = Math.min(state.scriptOptions.startSlot, Math.max(state.weapons.length - 1, 0));
+}
+
+function renderScript() {
+  $('#script-out').textContent = state.script || 'Add a weapon, then press Generate script.';
+  $('#script-meta').textContent = state.script
+    ? `${state.fileName} · ${state.script.split('\n').length} lines · ${state.weapons.length} slot(s)`
+    : '';
+}
+
+/* ---- tune detail ---- */
+
+function renderTune() {
+  const box = $('#tune-detail');
+  const entry = state.entries[state.selected];
+  if (!entry) {
+    box.innerHTML = '<div class="empty">Add a weapon to see its tuning.</div>';
+    return;
+  }
+  const { weapon, tuning } = entry;
+  const ar = tuning.antiRecoil;
+
+  box.innerHTML = `
+    <div class="row" style="justify-content:space-between;align-items:baseline">
+      <h2>Slot ${state.selected} — ${escapeHtml(weapon.name)}</h2>
+      <span class="hint">confidence ${Math.round(tuning.confidence * 100)}% · source ${escapeHtml(weapon.source)}</span>
+    </div>
+
+    <div class="stat-row" style="margin:12px 0">
+      <div class="stat"><div class="k">Vertical</div><div class="v">${ar.vertical}</div><div class="u">stick units</div></div>
+      <div class="stat"><div class="k">Horizontal</div><div class="v">${ar.horizontal}</div><div class="u">${ar.horizontal === 0 ? 'no drift' : ar.horizontal > 0 ? 'push right' : 'push left'}</div></div>
+      <div class="stat"><div class="k">Starts after</div><div class="v">${ar.kickMs}</div><div class="u">ms</div></div>
+      <div class="stat"><div class="k">Rapid fire</div><div class="v">${tuning.rapidFire.enabled ? tuning.rapidFire.effectiveRpm : '—'}</div><div class="u">${tuning.rapidFire.enabled ? 'rpm' : 'off'}</div></div>
+      <div class="stat"><div class="k">Sticky aim</div><div class="v">${tuning.sticky.enabled ? '±' + tuning.sticky.radius : '—'}</div><div class="u">${tuning.sticky.enabled ? tuning.sticky.periodMs + 'ms' : 'off'}</div></div>
+    </div>
+
+    <h3>Compensation over one trigger pull</h3>
+    <div class="legend">
+      <span><i style="background:var(--series-1)"></i>Vertical push</span>
+      ${ar.phases.some((p) => p.horizontal !== 0)
+        ? '<span><i style="background:var(--series-2)"></i>Horizontal push</span>'
+        : '<span style="color:var(--text-muted)">no horizontal correction</span>'}
+    </div>
+    <div class="chart-wrap" id="chart-wrap">${phaseChart(ar.phases)}<div class="tooltip" id="chart-tip"></div></div>
+
+    <table style="margin-top:14px">
+      <thead><tr><th>Phase</th><th class="num">Until (ms)</th><th class="num">Vertical</th><th class="num">Horizontal</th></tr></thead>
+      <tbody>
+        ${ar.phases.map((p, i) => `<tr>
+          <td>${i === 0 ? 'dead time' : i === ar.phases.length - 1 ? 'sustained' : 'ramp ' + i}</td>
+          <td class="num">${p.untilMs >= 32000 ? '∞' : p.untilMs}</td>
+          <td class="num">${p.vertical}</td>
+          <td class="num">${p.horizontal}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:18px">Why these numbers</h3>
+    <ul class="diagnostics">
+      ${tuning.diagnostics.map((d) => `<li>${escapeHtml(d)}</li>`).join('')}
+      ${(weapon.warnings || []).map((w) => `<li class="warn">⚠ ${escapeHtml(w)}</li>`).join('')}
+    </ul>
+
+    <h3 style="margin-top:18px">Weapon stats (edit to re-tune)</h3>
+    <div class="grid-2">
+      <label class="field">Name <input data-w="name" value="${escapeHtml(weapon.name)}"></label>
+      <label class="field">Class <select data-w="category">${state.meta.categories.map((c) =>
+        `<option value="${c.id}"${c.id === weapon.category ? ' selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}</select></label>
+      <label class="field">Fire mode <select data-w="fireMode">${['auto', 'semi', 'burst'].map((m) =>
+        `<option value="${m}"${m === weapon.fireMode ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+      <label class="field">RPM <input data-w="rpm" type="number" value="${weapon.rpm}" min="30" max="2000"></label>
+      <label class="field">Vertical recoil <input data-w="vertical" type="number" value="${weapon.recoil.vertical}" min="0" max="100"></label>
+      <label class="field">Horizontal recoil <input data-w="horizontal" type="number" value="${weapon.recoil.horizontal}" min="0" max="100"></label>
+      <label class="field">Drift (-1 left … +1 right)
+        <input data-w="drift" type="number" step="0.1" min="-1" max="1" value="${weapon.recoil.drift}">
+      </label>
+      <label class="field">First-shot delay (ms) <input data-w="firstShotKickMs" type="number" value="${weapon.recoil.firstShotKickMs}" min="0" max="600"></label>
+    </div>
+
+    <h3 style="margin-top:18px">Overrides for this weapon</h3>
+    <p class="hint">Leave a box empty to keep the calculated value. Anything you set here wins for this slot only,
+      and is marked with a <b>*</b> in the script header.</p>
+    <div class="grid-2">
+      ${overrideNumber('antiRecoilVertical', 'Vertical push', tuning, weapon)}
+      ${overrideNumber('antiRecoilHorizontal', 'Horizontal push', tuning, weapon)}
+      ${overrideNumber('kickMs', 'Start delay (ms)', tuning, weapon)}
+      ${overrideNumber('releaseThreshold', 'Release threshold', tuning, weapon)}
+      ${overrideMode('sticky', 'Sticky aim', tuning, weapon)}
+      ${overrideNumber('stickyRadius', 'Sticky radius', tuning, weapon)}
+      ${overrideNumber('stickyPeriodMs', 'Sticky step (ms)', tuning, weapon)}
+      ${overrideMode('rapidFire', 'Rapid fire', tuning, weapon)}
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" id="btn-reset-overrides"${Object.keys(weapon.overrides || {}).length ? '' : ' disabled'}>
+        Reset this weapon to auto
+      </button>
+      <span class="hint">${(tuning.overridden || []).length} value(s) set by hand</span>
+    </div>`;
+
+  wireWeaponEditor();
+  wireOverrides();
+  wireChart(ar.phases);
+}
+
+/**
+ * Step chart of the correction applied over one trigger pull.
+ * One y-axis (stick units) shared by both series - they are the same unit.
+ */
+function phaseChart(phases) {
+  const W = 680, H = 190, L = 42, R = 46, T = 12, B = 26;   // R leaves a gutter for the direct labels
+  const last = phases[phases.length - 1];
+  const visibleEnd = Math.max(phases[phases.length - 2]?.untilMs ?? 400, 200) * 1.45;
+  const maxY = Math.max(10, ...phases.map((p) => Math.max(p.vertical, p.horizontal)));
+  const minY = Math.min(0, ...phases.map((p) => p.horizontal));
+  const x = (ms) => L + (Math.min(ms, visibleEnd) / visibleEnd) * (W - L - R);
+  const y = (v) => T + (1 - (v - minY) / (maxY - minY || 1)) * (H - T - B);
+
+  const steps = (key) => {
+    let d = `M ${x(0)} ${y(phases[0][key])}`;
+    let prev = phases[0][key];
+    for (const p of phases) {
+      d += ` L ${x(p.untilMs)} ${y(prev)}`;
+      const next = p === last ? p[key] : phases[phases.indexOf(p) + 1][key];
+      d += ` L ${x(p.untilMs)} ${y(next)}`;
+      prev = next;
+    }
+    d += ` L ${x(visibleEnd)} ${y(last[key])}`;
+    return d;
+  };
+
+  // Direct labels sit in the right gutter; nudge them apart if the two series end close together.
+  const labelY = { v: y(last.vertical) + 4, h: y(last.horizontal) + 4 };
+  if (Math.abs(labelY.v - labelY.h) < 14) labelY.h = labelY.v + 14;
+
+  const hasH = phases.some((p) => p.horizontal !== 0);
+  const gridY = [minY, Math.round((minY + maxY) / 2), maxY];
+  const ticks = [0, Math.round(visibleEnd / 2), Math.round(visibleEnd)];
+
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Correction applied over time; the table below has the same values.">
+    ${gridY.map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" fill="var(--text-muted)" font-size="11">${v}</text>`).join('')}
+    ${ticks.map((t, i) => `<text x="${x(t)}" y="${H - 8}" text-anchor="${i === 0 ? 'start' : i === ticks.length - 1 ? 'end' : 'middle'}" fill="var(--text-muted)" font-size="11">${t}ms</text>`).join('')}
+    ${hasH ? `<path d="${steps('horizontal')}" fill="none" stroke="var(--series-2)" stroke-width="2" stroke-linejoin="round"/>` : ''}
+    <path d="${steps('vertical')}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
+    <text x="${W - R + 7}" y="${labelY.v}" fill="var(--series-1)" font-size="12" font-weight="600">${last.vertical}</text>
+    ${hasH ? `<text x="${W - R + 7}" y="${labelY.h}" fill="var(--series-2)" font-size="12" font-weight="600">${last.horizontal}</text>` : ''}
+    ${phases.map((p, i) => {
+      const from = i === 0 ? 0 : phases[i - 1].untilMs;
+      return `<rect class="hit" data-phase="${i}" x="${x(from)}" y="${T}" width="${Math.max(x(p.untilMs) - x(from), 1)}" height="${H - T - B}" fill="transparent"/>`;
+    }).join('')}
+  </svg>`;
+}
+
+function wireChart(phases) {
+  const wrap = $('#chart-wrap');
+  const tip = $('#chart-tip');
+  if (!wrap) return;
+  wrap.addEventListener('mousemove', (e) => {
+    const hit = e.target.closest('.hit');
+    if (!hit) { tip.classList.remove('on'); return; }
+    const p = phases[Number(hit.dataset.phase)];
+    const from = Number(hit.dataset.phase) === 0 ? 0 : phases[Number(hit.dataset.phase) - 1].untilMs;
+    tip.innerHTML = `${from}–${p.untilMs >= 32000 ? '∞' : p.untilMs}ms<br>V ${p.vertical} · H ${p.horizontal}`;
+    const box = wrap.getBoundingClientRect();
+    tip.style.left = `${e.clientX - box.left}px`;
+    tip.style.top = `${e.clientY - box.top}px`;
+    tip.classList.add('on');
+  });
+  wrap.addEventListener('mouseleave', () => tip.classList.remove('on'));
+}
+
+/* ------------------------------------------------------------------ */
+/* actions                                                             */
+/* ------------------------------------------------------------------ */
+
+function addWeapons(weapons, note) {
+  const room = state.meta.maxSlots - state.weapons.length;
+  if (room <= 0) return toast(`A script holds ${state.meta.maxSlots} slots - remove one first.`, true);
+  const added = weapons.slice(0, room);
+  state.weapons.push(...added);
+  state.selected = state.weapons.length - 1;
+  toast(note || `Added ${added.length} weapon${added.length === 1 ? '' : 's'}.`);
+  if (added.length < weapons.length) toast(`Only ${added.length} fitted - ${state.meta.maxSlots} slot limit.`, true);
+  refresh();
+}
+
+let refreshTimer;
+function refresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
+    if (!state.weapons.length) {
+      state.entries = [];
+      state.script = '';
+      renderSlots(); renderTune(); renderScript();
+      return;
+    }
+    try {
+      const result = await api('/api/generate', {
+        weapons: state.weapons,
+        profile: { ...state.profile, game: state.game },
+        ...state.scriptOptions
+      });
+      state.entries = result.entries;
+      state.script = result.gpc;
+      state.fileName = result.fileName;
+      // keep the canonical (normalised) weapons so edits round-trip cleanly
+      state.weapons = result.entries.map((e) => e.weapon);
+      renderSlots(); renderTune(); renderScript();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }, 120);
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* wiring                                                              */
+/* ------------------------------------------------------------------ */
+
+function wire() {
+  // tabs
+  $$('.tabs [role="tab"]').forEach((btn) => btn.addEventListener('click', () => {
+    $$('.tabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+    ['import', 'tune', 'script', 'coach'].forEach((id) => { $(`#tab-${id}`).hidden = id !== btn.dataset.tab; });
+  }));
+  $$('.subtabs [role="tab"]').forEach((btn) => btn.addEventListener('click', () => {
+    $$('.subtabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+    ['catalog', 'describe', 'screenshot', 'json', 'csv', 'manual']
+      .forEach((id) => { $(`#sub-${id}`).hidden = id !== btn.dataset.sub; });
+  }));
+
+  // game
+  $('#game').addEventListener('change', (e) => {
+    state.game = e.target.value;
+    renderCatalog();
+    refresh();
+  });
+
+  // catalog
+  $('#catalog').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-preset]');
+    if (!btn) return;
+    const weapon = state.meta.catalog[state.game][Number(btn.dataset.preset)];
+    addWeapons([structuredClone(weapon)]);
+  });
+
+  // slot list
+  $('#slot-list').addEventListener('click', (e) => {
+    const remove = e.target.closest('[data-remove]');
+    const move = e.target.closest('[data-move]');
+    const slot = e.target.closest('[data-slot]');
+    if (remove) {
+      state.weapons.splice(Number(remove.dataset.remove), 1);
+      state.selected = Math.max(0, Math.min(state.selected, state.weapons.length - 1));
+      return refresh();
+    }
+    if (move) {
+      const i = Number(move.dataset.move);
+      const j = i + Number(move.dataset.dir);
+      if (j < 0 || j >= state.weapons.length) return;
+      [state.weapons[i], state.weapons[j]] = [state.weapons[j], state.weapons[i]];
+      state.selected = j;
+      return refresh();
+    }
+    if (slot) {
+      state.selected = Number(slot.dataset.slot);
+      renderSlots();
+      renderTune();
+    }
+  });
+
+  $('#btn-clear').addEventListener('click', () => {
+    if (!state.weapons.length) return;
+    state.weapons = [];
+    state.selected = 0;
+    refresh();
+    toast('Loadout cleared.');
+  });
+
+  $('#btn-export-weapons').addEventListener('click', () => {
+    if (!state.weapons.length) return toast('Nothing to export.', true);
+    download(JSON.stringify({ game: state.game, profile: state.profile, weapons: state.weapons }, null, 2),
+      'sticky-aim-loadout.json', 'application/json');
+  });
+
+  // profile inputs
+  $$('[id^="p-"]').forEach((el) => {
+    if (!el.id.match(/^p-[a-zA-Z]+$/)) return;
+    const key = el.id.slice(2);
+    el.addEventListener('input', () => {
+      state.profile[key] = el.type === 'checkbox' ? el.checked : (el.type === 'number' || el.type === 'range' ? Number(el.value) : el.value);
+      const out = $(`#p-${key}-val`);
+      if (out && RANGE_LABELS[key]) out.textContent = RANGE_LABELS[key](Number(el.value));
+      if (key === 'controller') renderModButtons();
+      refresh();
+    });
+  });
+
+  // your own settings
+  $('#btn-add-setting').addEventListener('click', () => addCustomSetting());
+
+  $('#btn-suggest-settings').addEventListener('click', () => {
+    const family = (state.meta.games.find((g) => g.id === state.game)?.id || '').split('-')[0];
+    const list = SUGGESTED_SETTINGS[family] || SUGGESTED_SETTINGS[state.game] || SUGGESTED_SETTINGS.generic;
+    const existing = new Set((state.profile.customSettings || []).map((r) => r.name.toLowerCase()));
+    const added = list.filter((row) => !existing.has(row.name.toLowerCase()));
+    added.forEach((row) => addCustomSetting(row));
+    toast(added.length ? `Added ${added.length} - fill in your values.` : 'Those are already in the list.');
+  });
+
+  // saved setups
+  $('#btn-save-setup').addEventListener('click', () => {
+    const name = ($('#setup-name').value || '').trim() || `${state.game} setup`;
+    const setups = readSetups();
+    setups[name] = { game: state.game, profile: state.profile, savedAt: new Date().toISOString() };
+    if (!writeSetups(setups)) return;
+    renderSetupList(name);
+    toast(`Saved "${name}".`);
+  });
+
+  $('#btn-load-setup').addEventListener('click', () => {
+    const name = $('#setup-list').value;
+    const setup = readSetups()[name];
+    if (!setup) return toast('Nothing to load.', true);
+    state.profile = { ...state.meta.defaultProfile, ...setup.profile };
+    if (setup.game && state.meta.games.some((g) => g.id === setup.game)) {
+      state.game = setup.game;
+      $('#game').value = setup.game;
+      renderCatalog();
+    }
+    syncProfileInputs();
+    renderCustomSettings();
+    renderModButtons();
+    refresh();
+    toast(`Loaded "${name}".`);
+  });
+
+  $('#btn-delete-setup').addEventListener('click', () => {
+    const name = $('#setup-list').value;
+    if (!name) return;
+    const setups = readSetups();
+    delete setups[name];
+    writeSetups(setups);
+    renderSetupList();
+    toast(`Deleted "${name}".`);
+  });
+
+  // script options
+  $('#s-title').addEventListener('input', (e) => { state.scriptOptions.title = e.target.value; refresh(); });
+  $('#s-author').addEventListener('input', (e) => { state.scriptOptions.author = e.target.value; refresh(); });
+  $('#s-mod').addEventListener('change', (e) => { state.scriptOptions.modButton = e.target.value; refresh(); });
+  $('#s-start').addEventListener('change', (e) => { state.scriptOptions.startSlot = Number(e.target.value); refresh(); });
+
+  $('#btn-generate').addEventListener('click', () => {
+    if (!state.weapons.length) return toast('Add a weapon first.', true);
+    $$('.tabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === 'script')));
+    ['import', 'tune', 'script', 'coach'].forEach((id) => { $(`#tab-${id}`).hidden = id !== 'script'; });
+    refresh();
+  });
+
+  $('#btn-copy').addEventListener('click', async () => {
+    if (!state.script) return toast('Nothing to copy yet.', true);
+    try {
+      await navigator.clipboard.writeText(state.script);
+      toast('Script copied - paste it into Zen Studio.');
+    } catch {
+      toast('Clipboard blocked - select the text and copy manually.', true);
+    }
+  });
+
+  $('#btn-download').addEventListener('click', () => {
+    if (!state.script) return toast('Nothing to download yet.', true);
+    download(state.script, state.fileName, 'text/plain');
+  });
+
+  // importers
+  $('#btn-json').addEventListener('click', (e) => withBusy(e.target, async () => {
+    const { weapons } = await api('/api/import', { kind: 'json', payload: $('#json-text').value, game: state.game });
+    addWeapons(weapons);
+  }));
+
+  $('#btn-csv').addEventListener('click', (e) => withBusy(e.target, async () => {
+    const { weapons } = await api('/api/import', { kind: 'csv', payload: $('#csv-text').value, game: state.game });
+    addWeapons(weapons);
+  }));
+
+  $('#btn-describe').addEventListener('click', (e) => withBusy(e.target, async () => {
+    const result = await api('/api/import', { kind: 'text', payload: $('#describe-text').value, game: state.game });
+    $('#describe-mode').textContent = result.mode === 'ai' ? 'Read by Claude.' : 'Parsed locally.';
+    if (result.notes) toast(result.notes);
+    addWeapons(result.weapons);
+  }));
+
+  $('#shot-file').addEventListener('change', (e) => {
+    $('#shot-name').textContent = e.target.files[0]?.name || '';
+  });
+
+  $('#btn-shot').addEventListener('click', (e) => withBusy(e.target, async () => {
+    const file = $('#shot-file').files[0];
+    if (!file) throw new Error('Choose a screenshot first.');
+    const result = await api('/api/import', {
+      kind: 'image',
+      payload: await fileToBase64(file),
+      mediaType: file.type || 'image/png',
+      hint: $('#shot-hint').value,
+      game: state.game
+    });
+    if (result.notes) toast(result.notes);
+    addWeapons(result.weapons);
+  }));
+
+  $('#btn-manual').addEventListener('click', (e) => withBusy(e.target, async () => {
+    const { weapons } = await api('/api/import', {
+      kind: 'manual',
+      game: state.game,
+      weapon: {
+        name: $('#m-name').value || 'Custom weapon',
+        category: $('#m-category').value,
+        fireMode: $('#m-firemode').value,
+        rpm: Number($('#m-rpm').value),
+        vertical: Number($('#m-vertical').value),
+        horizontal: Number($('#m-horizontal').value),
+        drift: $('#m-drift').value,
+        magSize: Number($('#m-mag').value)
+      }
+    });
+    addWeapons(weapons);
+  }));
+
+  // coach
+  $('#btn-coach').addEventListener('click', (e) => withBusy(e.target, async () => {
+    if (!state.weapons.length) throw new Error('Add a weapon first.');
+    const result = await api('/api/coach', {
+      weapons: state.weapons,
+      profile: { ...state.profile, game: state.game },
+      question: $('#coach-q').value
+    });
+    $('#coach-mode').textContent = result.mode === 'ai' ? 'Reviewed by Claude.' : 'Offline notes.';
+    $('#coach-out').innerHTML = miniMarkdown(result.text);
+  }));
+}
+
+
+
+/* ---------------- your own in-game settings ---------------- */
+
+function renderCustomSettings() {
+  const rows = state.profile.customSettings || [];
+  const box = $('#custom-settings');
+  if (!rows.length) {
+    box.innerHTML = '<div class="empty">No settings of your own yet. Add the ones from your options menu that ' +
+      'change how a gun handles.</div>';
+    return;
+  }
+  box.innerHTML = rows.map((row, i) => `
+    <div class="setting-row" data-row="${i}">
+      <input data-cs="name" value="${escapeHtml(row.name)}" placeholder="Setting name" aria-label="Setting name">
+      <input data-cs="value" value="${escapeHtml(row.value)}" placeholder="Value" aria-label="Value">
+      <select data-cs="affects" aria-label="What it changes">${state.meta.options.customTargets.map((t) =>
+        `<option value="${t}"${t === row.affects ? ' selected' : ''}>${escapeHtml(TARGET_LABELS[t] || t)}</option>`).join('')}</select>
+      <span class="adjust${row.affects === 'none' ? ' off' : ''}">
+        <input data-cs="adjust" type="number" step="5" min="-75" max="100" value="${row.adjust}"
+          ${row.affects === 'none' ? 'disabled' : ''} aria-label="Percent change">
+        <span class="hint">%</span>
+      </span>
+      <button class="drag danger" data-remove-cs="${i}" title="Remove">&times;</button>
+    </div>`).join('');
+
+  $$('#custom-settings [data-cs]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const i = Number(el.closest('[data-row]').dataset.row);
+      const key = el.dataset.cs;
+      state.profile.customSettings[i][key] = key === 'adjust' ? Number(el.value) : el.value;
+      if (key === 'affects') renderCustomSettings();   // enable/disable the % box
+      refresh();
+    });
+  });
+
+  $$('#custom-settings [data-remove-cs]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.profile.customSettings.splice(Number(btn.dataset.removeCs), 1);
+      renderCustomSettings();
+      refresh();
+    });
+  });
+}
+
+function addCustomSetting(row = {}) {
+  state.profile.customSettings = state.profile.customSettings || [];
+  if (state.profile.customSettings.length >= 24) return toast('24 settings is the limit.', true);
+  state.profile.customSettings.push({
+    id: `cs${Date.now()}${state.profile.customSettings.length}`,
+    name: row.name || '',
+    value: row.value || '',
+    affects: row.affects || 'none',
+    adjust: row.adjust ?? 0
+  });
+  renderCustomSettings();
+  refresh();
+}
+
+/* ---------------- saved setups ---------------- */
+
+function readSetups() {
+  try {
+    return JSON.parse(localStorage.getItem(SETUP_STORE) || '{}');
+  } catch {
+    return {};   // private mode, cleared storage, corrupt entry - all the same to us
+  }
+}
+
+function writeSetups(setups) {
+  try {
+    localStorage.setItem(SETUP_STORE, JSON.stringify(setups));
+    return true;
+  } catch {
+    toast('This browser will not let the page save settings.', true);
+    return false;
+  }
+}
+
+function renderSetupList(selected) {
+  const names = Object.keys(readSetups()).sort();
+  $('#setup-list').innerHTML = names.length
+    ? names.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')
+    : '<option value="">no saved setups</option>';
+  if (selected && names.includes(selected)) $('#setup-list').value = selected;
+  for (const id of ['#btn-load-setup', '#btn-delete-setup']) $(id).disabled = !names.length;
+}
+
+/** One override input: empty means "auto", and the placeholder shows what auto is. */
+function overrideNumber(key, label, tuning, weapon) {
+  const spec = state.meta.options.overrides[key];
+  const current = weapon.overrides?.[key];
+  const autoValue = tuning.auto?.[key];
+  return `<label class="field">${escapeHtml(label)}
+    <input data-ov="${key}" type="number" min="${spec.min}" max="${spec.max}"
+      value="${current ?? ''}" placeholder="auto${autoValue === undefined ? '' : ` (${autoValue})`}">
+  </label>`;
+}
+
+function overrideMode(key, label, tuning, weapon) {
+  const current = weapon.overrides?.[key] || 'auto';
+  const autoValue = tuning.auto?.[key];
+  const options = [
+    ['auto', `Auto${autoValue ? ` (${autoValue})` : ''}`],
+    ['on', 'Force on'],
+    ['off', 'Force off']
+  ];
+  return `<label class="field">${escapeHtml(label)}
+    <select data-ov="${key}">${options.map(([v, text]) =>
+      `<option value="${v}"${v === current ? ' selected' : ''}>${escapeHtml(text)}</option>`).join('')}</select>
+  </label>`;
+}
+
+function wireOverrides() {
+  $$('#tune-detail [data-ov]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const weapon = state.weapons[state.selected];
+      weapon.overrides = { ...(weapon.overrides || {}) };
+      const key = el.dataset.ov;
+      const raw = el.value;
+      if (raw === '' || raw === 'auto') delete weapon.overrides[key];
+      else weapon.overrides[key] = el.type === 'number' ? Number(raw) : raw;
+      refresh();
+    });
+  });
+
+  const reset = $('#btn-reset-overrides');
+  if (reset) reset.addEventListener('click', () => {
+    state.weapons[state.selected].overrides = {};
+    toast('Back to the calculated values.');
+    refresh();
+  });
+}
+
+function wireWeaponEditor() {
+  $$('#tune-detail [data-w]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const weapon = state.weapons[state.selected];
+      const key = el.dataset.w;
+      const value = el.type === 'number' ? Number(el.value) : el.value;
+      if (key === 'vertical' || key === 'horizontal') weapon.recoil[key] = value;
+      else if (key === 'drift') weapon.recoil.drift = Number(value);
+      else if (key === 'firstShotKickMs') weapon.recoil.firstShotKickMs = value;
+      else weapon[key] = value;
+      weapon.source = 'manual';
+      refresh();
+    });
+  });
+}
+
+/**
+ * Hand a file to the viewer. A plain anchor works in a normal browser; a
+ * sandboxed one (the published single-file build) installs `stickyAimSave`
+ * and routes the save through its host instead.
+ */
+function download(text, fileName, mime) {
+  if (typeof window !== 'undefined' && window.stickyAimSave) return window.stickyAimSave(text, fileName, mime);
+
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Saved ${fileName}`);
+}
+
+/** Just enough markdown for the coach output - bullets, bold, code. */
+function miniMarkdown(text) {
+  return escapeHtml(text)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/^\s*[-*]\s+(.*)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, '<ul>$1</ul>')
+    .replace(/\n{2,}/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+boot().catch((err) => {
+  document.body.insertAdjacentHTML('afterbegin',
+    `<div class="card" style="margin:20px">Could not start: ${escapeHtml(err.message)}</div>`);
+});
+
+
+
+(async () => {
+  const button = document.querySelector('#btn-download');
+  const downloads = await (window.claude?.use?.('downloads') ?? Promise.resolve(null));
+  if (!downloads) {
+    if (button) button.hidden = true;       // no way to hand over a file in this view
+    return;
+  }
+  if (button) button.textContent = 'Save script';
+
+  window.stickyAimSave = async (text, fileName) => {
+    const filename = fileName.endsWith('.gpc') ? fileName + '.txt' : fileName;
+    try {
+      await downloads.save({ filename, data: text });
+      toast('Saved ' + filename + (filename.endsWith('.gpc.txt') ? ' - rename it to .gpc for Zen Studio' : ''));
+    } catch (err) {
+      if (err?.code === 'declined') return;
+      if (err?.code === 'rate_limited') return toast('Give the last save a moment, then try again.', true);
+      toast('Could not save here - use Copy script instead.', true);
+    }
+  };
+})();
+</script>

@@ -23,7 +23,14 @@ const SETUP_STORE = 'stickyaim.setups.v1';
 /* plumbing                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Every call the page makes goes through here. The served app talks to the
+ * local Node server; the standalone single-file build installs its own
+ * transport on `window.stickyAimApi` and answers the same calls in-page.
+ */
 async function api(path, body) {
+  if (typeof window !== 'undefined' && window.stickyAimApi) return window.stickyAimApi(path, body);
+
   const res = await fetch(path, body
     ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
     : undefined);
@@ -815,7 +822,14 @@ function wireWeaponEditor() {
   });
 }
 
+/**
+ * Hand a file to the viewer. A plain anchor works in a normal browser; a
+ * sandboxed one (the published single-file build) installs `stickyAimSave`
+ * and routes the save through its host instead.
+ */
 function download(text, fileName, mime) {
+  if (typeof window !== 'undefined' && window.stickyAimSave) return window.stickyAimSave(text, fileName, mime);
+
   const url = URL.createObjectURL(new Blob([text], { type: mime }));
   const a = document.createElement('a');
   a.href = url;

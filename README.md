@@ -13,6 +13,12 @@ npm install
 npm start          # http://localhost:5173
 ```
 
+**No Node, or on a phone?** `npm run build:standalone` writes
+`dist/sticky-aim-studio.html` — one self-contained file that runs the catalog,
+importers, tuner and GPC emitter entirely in the browser, with no server and no
+network. Open it from anywhere, or publish it. The AI importers are the only
+thing it leaves behind; they need an API key, which means they need the server.
+
 Nothing else to configure. An `ANTHROPIC_API_KEY` unlocks the AI importers
 (see below) but the app, the tuner and the generator all work without one.
 
@@ -214,15 +220,18 @@ server/
   index.js      dependency-free HTTP server + JSON API
   ai.js         Claude integration (text import, screenshot import, review)
 web/          the page (vanilla ES modules, no build step)
-test/         node:test suites for the core and the API
+tools/
+  build-standalone.js   inlines core/ + web/ into one offline HTML file
+test/         node:test suites for the core, the API and the bundle
 ```
 
 All maths live in `core/` and run server-side, so the page, the API and the
 tests can never disagree about what a weapon tunes to.
 
 ```bash
-npm test      # 58 tests: importers, tuning bounds, in-game settings, options,
-              # overrides, GPC structure, API contract
+npm test                  # 65 tests: importers, tuning bounds, in-game settings,
+                          # options, overrides, GPC structure, API, bundle
+npm run build:standalone  # dist/sticky-aim-studio.html - no server needed
 ```
 
 ### API
