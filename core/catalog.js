@@ -44,7 +44,9 @@ const BO7 = [
   ['Warden 308', 'marksman'], ['M34 Novaline', 'marksman'],
   ['NX Ravager', 'sniper'], ['VS Recon', 'sniper'], ['XR-3 Ion', 'sniper'],
   ['M10 Breacher', 'shotgun'], ['Echo 12', 'shotgun', { fire: 'auto', rpm: 200 }], ['Akita', 'shotgun'],
-  ['Jager 45', 'pistol'], ['Coda 9', 'pistol'], ['Velox 5.7', 'pistol']
+  ['Jager 45', 'pistol'], ['Coda 9', 'pistol'], ['Velox 5.7', 'pistol'],
+  // added across seasons
+  ['TR51 Para', 'ar'], ['VMP', 'smg']
 ];
 
 /* ------------------------------------------------------------------ *
@@ -86,33 +88,53 @@ const MW3 = [
   ['Rival-9', 'smg', { rpm: 882, v: 30, h: 13, drift: 0.1, mag: 30, ads: 195 }],
   ['WSP Swarm', 'smg', { rpm: 1200, v: 42, h: 20, drift: 0.4, mag: 50, ads: 190 }],
   ['AMR9', 'smg'], ['Striker 9', 'smg'], ['HRM-9', 'smg'], ['WSP-9', 'smg'], ['FJX Horus', 'smg'],
-  ['Lachmann Sub', 'smg'], ['Fennec 45', 'smg', { rpm: 1100, v: 36, h: 18 }], ['Vaznev-9K', 'smg'],
-  ['BAS-P', 'smg'], ['MX9', 'smg'], ['Minibak', 'smg'],
   ['Holger 26', 'lmg', { rpm: 698, v: 55, h: 17, drift: -0.2, mag: 60, ads: 380 }],
   ['Pulemyot 762', 'lmg', { rpm: 620, v: 62, h: 19, drift: -0.3, mag: 100, ads: 430 }],
-  ['TAQ Eradicator', 'lmg'], ['DG-58 LSW', 'lmg'], ['Bruen Mk9', 'lmg'], ['Sakin MG38', 'lmg'],
-  ['RAAL MG', 'lmg'], ['556 Icarus', 'lmg'], ['RPK', 'lmg'],
+  ['TAQ Eradicator', 'lmg'], ['DG-58 LSW', 'lmg'], ['Bruen Mk9', 'lmg'],
   ['MTZ Interceptor', 'marksman', { rpm: 320, v: 34, h: 9, mag: 10, ads: 310 }],
-  ['KVD Enforcer', 'marksman'], ['DM56', 'marksman'], ['SP-R 208', 'marksman'], ['EBR-14', 'marksman'],
-  ['Lockwood MK2', 'marksman'], ['TAQ-M', 'marksman'], ['SA-B 50', 'marksman'],
+  ['KVD Enforcer', 'marksman'], ['DM56', 'marksman'],
   ['KATT-AMR', 'sniper', { rpm: 38, v: 78, h: 7, mag: 7, ads: 600 }],
   ['Longbow', 'sniper'], ['XRK Stalker', 'sniper'], ['MORS', 'sniper'], ['FJX Imperium', 'sniper'],
-  ['Signal 50', 'sniper', { fire: 'semi', rpm: 90 }], ['LA-B 330', 'sniper'], ['SP-X 80', 'sniper'],
-  ['Victus XMR', 'sniper'], ['Carrack .300', 'sniper'],
+  ['Carrack .300', 'sniper'],
   ['Lockwood 680', 'shotgun'], ['Haymaker', 'shotgun', { fire: 'auto', rpm: 300 }], ['Riveter', 'shotgun'],
-  ['Bryson 800', 'shotgun'], ['Bryson 890', 'shotgun'], ['Expedite 12', 'shotgun'], ['KV Broadside', 'shotgun'],
-  ['COR-45', 'pistol'], ['Renetti', 'pistol'], ['TYR', 'pistol'], ['WSP Stinger', 'pistol'],
-  ['.50 GS', 'pistol', { rpm: 300, v: 60, h: 10 }], ['X12', 'pistol'], ['X13 Auto', 'pistol', { fire: 'auto', rpm: 900 }],
-  ['Basilisk', 'pistol'], ['FTAC Siege', 'pistol', { fire: 'auto', rpm: 800 }]
+  ['COR-45', 'pistol'], ['Renetti', 'pistol'], ['TYR', 'pistol'], ['WSP Stinger', 'pistol']
+];
+
+/* ------------------------------------------------------------------ *
+ * Modern Warfare II - still a large slice of the Warzone pool          *
+ * ------------------------------------------------------------------ */
+const MW2 = [
+  ['M4', 'ar'], ['TAQ-56', 'ar'], ['Kastov 762', 'ar', { rpm: 620, v: 56, h: 18, drift: -0.3 }],
+  ['Kastov-74u', 'ar'], ['Kastov 545', 'ar'], ['M16', 'ar', { fire: 'burst', burst: 3, rpm: 900 }],
+  ['Lachmann-556', 'ar'], ['STB 556', 'ar'], ['Chimera', 'ar'], ['ISO Hemlock', 'ar'], ['M13B', 'ar'],
+  ['TAQ-V', 'battle'], ['FTAC Recon', 'battle'], ['SO-14', 'battle'], ['Lachmann-762', 'battle'],
+  ['Cronen Squall', 'battle'], ['FR Avancer', 'ar'],
+  ['Lachmann Sub', 'smg'], ['FSS Hurricane', 'smg'], ['Vaznev-9K', 'smg'], ['MX9', 'smg'],
+  ['Minibak', 'smg'], ['PDSW 528', 'smg'], ['VEL 46', 'smg'],
+  ['Fennec 45', 'smg', { rpm: 1100, v: 36, h: 18 }], ['BAS-P', 'smg'], ['Lachmann Shroud', 'smg'],
+  ['ISO 45', 'smg'], ['ISO 9mm', 'smg'], ['Vaznev Compact', 'smg'],
+  ['556 Icarus', 'lmg'], ['RAAL MG', 'lmg'], ['Sakin MG38', 'lmg'], ['HCR 56', 'lmg'],
+  ['RPK', 'lmg'], ['RAPP H', 'lmg'],
+  ['EBR-14', 'marksman'], ['SP-R 208', 'marksman'], ['Lockwood MK2', 'marksman'], ['LM-S', 'marksman'],
+  ['TAQ-M', 'marksman'], ['SA-B 50', 'marksman'], ['Crossbow', 'marksman'], ['Tempus Torrent', 'marksman'],
+  ['MCPR-300', 'sniper'], ['Signal 50', 'sniper', { fire: 'semi', rpm: 90 }], ['LA-B 330', 'sniper'],
+  ['SP-X 80', 'sniper'], ['Victus XMR', 'sniper'], ['FJX Imperium MWII', 'sniper'],
+  ['Lockwood 300', 'shotgun'], ['Expedite 12', 'shotgun'], ['Bryson 800', 'shotgun'],
+  ['Bryson 890', 'shotgun'], ['KV Broadside', 'shotgun'],
+  ['X12', 'pistol'], ['X13 Auto', 'pistol', { fire: 'auto', rpm: 900 }],
+  ['.50 GS', 'pistol', { rpm: 300, v: 60, h: 10 }], ['P890', 'pistol'], ['Basilisk', 'pistol'],
+  ['FTAC Siege', 'pistol', { fire: 'auto', rpm: 800 }], ['GS Magna', 'pistol'],
+  ['Vel 9mm', 'smg'], ['Tempus Razorback', 'ar'], ['BAS-B MWII', 'battle']
 ];
 
 const ROSTERS = {
   'cod-bo7': BO7,
   'cod-bo6': BO6,
   'cod-mw3': MW3,
-  // Warzone pools the current Call of Duty arsenals, so its catalog is theirs,
-  // re-tuned against the Warzone game profile.
-  warzone: [...BO7, ...BO6, ...MW3],
+  // Warzone pools the current Call of Duty arsenals - Black Ops 7 and 6 plus the
+  // Modern Warfare III and II guns it still carries - re-tuned against the
+  // Warzone game profile.
+  warzone: [...BO7, ...BO6, ...MW3, ...MW2],
 
   apex: [
     ['R-301 Carbine', 'ar', { rpm: 810, v: 34, h: 12, drift: 0.2, mag: 28, ads: 250 }],

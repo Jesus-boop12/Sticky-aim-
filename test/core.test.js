@@ -485,7 +485,7 @@ test('a setting name cannot break out of the header comment', () => {
 /* ---------------- rosters ---------------- */
 
 test('every Call of Duty title ships a full roster', () => {
-  for (const [game, min] of [['cod-bo7', 25], ['cod-bo6', 35], ['cod-mw3', 70], ['warzone', 120]]) {
+  for (const [game, min] of [['cod-bo7', 28], ['cod-bo6', 38], ['cod-mw3', 45], ['warzone', 170]]) {
     const list = catalogFor(game);
     assert.ok(list.length >= min, `${game} has only ${list.length} weapons`);
   }
