@@ -209,7 +209,10 @@ export function getGame(id) {
 }
 
 export function listGames() {
-  return GAMES.map(({ id, name, notes, aimAssist }) => ({ id, name, notes, aimAssist }));
+  // referenceSens/Ads/Fov travel with the game: a sensitivity of 6 means something
+  // completely different in PUBG (1-100) than in Call of Duty (1-20).
+  return GAMES.map(({ id, name, notes, aimAssist, referenceSens, referenceAds, referenceFov }) =>
+    ({ id, name, notes, aimAssist, referenceSens, referenceAds, referenceFov }));
 }
 
 /** Weapon categories and how they behave under compensation. */

@@ -56,7 +56,7 @@ test('POST /api/generate returns a script and the tuning behind it', async () =>
       title: 'My Script'
     });
     assert.equal(status, 200);
-    assert.match(body.gpc, /#pragma METAINFO\("My Script"/);
+    assert.match(body.gpc, /\*  My Script/, 'the title lives in the header comment');
     assert.equal(body.fileName, 'my-script.gpc');
     assert.equal(body.entries.length, 1);
     assert.ok(body.entries[0].tuning.antiRecoil.vertical > 0);

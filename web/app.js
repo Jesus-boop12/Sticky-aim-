@@ -494,7 +494,22 @@ function wire() {
 
   // game
   $('#game').addEventListener('change', (e) => {
+    const previous = state.meta.games.find((g) => g.id === state.game);
     state.game = e.target.value;
+    const game = state.meta.games.find((g) => g.id === state.game);
+
+    // Sensitivity scales differ wildly between games - 6 is a normal Call of Duty
+    // setting and an unusably slow one in PUBG. Snap to the new game's own
+    // reference unless you had already moved off the old game's.
+    if (game && previous && state.profile.sensitivity === previous.referenceSens) {
+      state.profile.sensitivity = game.referenceSens;
+      state.profile.adsMultiplier = game.referenceAds;
+      syncProfileInputs();
+      toast(`Settings reset to ${game.name} defaults — enter your own on the Tune tab.`);
+    } else if (game && state.profile.sensitivity > game.referenceSens * 3) {
+      toast(`Heads up: ${game.name} sensitivity usually sits around ${game.referenceSens}.`);
+    }
+
     renderCatalog();
     refresh();
   });

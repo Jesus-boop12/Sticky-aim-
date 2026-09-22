@@ -186,12 +186,9 @@ export function computeTuning(weapon, rawProfile = {}) {
   const customV = customFactor(profile, 'vertical');
   const customH = customFactor(profile, 'horizontal');
 
-  let peakV = clamp(
-    round(base * game.recoilGain * rpmFactor * sensFactor * adsFactor * curveFactor *
-          vertSensFactor * fovFactor * attachV * trim * customV),
-    0,
-    100
-  );
+  const rawV = round(base * game.recoilGain * rpmFactor * sensFactor * adsFactor * curveFactor *
+                     vertSensFactor * fovFactor * attachV * trim * customV);
+  let peakV = clamp(rawV, 0, 100);
 
   diagnostics.push(
     `Vertical ${peakV}/100 = recoil ${base} x gain ${game.recoilGain} x rpm ${rpmFactor.toFixed(2)} ` +
@@ -208,6 +205,20 @@ export function computeTuning(weapon, rawProfile = {}) {
     diagnostics.push(`FOV ${profile.fov} noted but not applied - your game's aim speed is not tied to FOV, so the pull is unchanged.`);
   } else if (fovFactor !== 1) {
     diagnostics.push(`FOV ${fov} vs the ${game.referenceFov} these stats assume, with FOV-relative aim: pull scaled by ${fovFactor.toFixed(2)}.`);
+  }
+
+  // A pull that fills the stick is not a tune, it is the script taking your aim
+  // away - and above 100 it cannot even do what the maths asked for.
+  if (rawV > 100) {
+    diagnostics.push(
+      `WARNING: this needs ${rawV} units of stick but 100 is the whole stick. Your settings are too slow for ` +
+      'the script to keep up - raise your in-game sensitivity or ADS multiplier, then re-generate.'
+    );
+  } else if (peakV >= 70) {
+    diagnostics.push(
+      `WARNING: a pull of ${peakV} is most of the stick and will drag your aim down. Raise your in-game ` +
+      'sensitivity, or cut the strength trim, unless the range says otherwise.'
+    );
   }
 
   auto.antiRecoilVertical = peakV;

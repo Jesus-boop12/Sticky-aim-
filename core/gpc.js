@@ -89,6 +89,23 @@ function sanitize(text, max = 60) {
   return String(text).replace(/[^\x20-\x7E]/g, '').replace(/\*\//g, '* /').slice(0, max);
 }
 
+/** Fold a long diagnostic across comment lines instead of truncating it. */
+function wrapComment(text, width) {
+  const words = sanitize(text, 400).split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    if (line && (line + ' ' + word).length > width) {
+      lines.push(line);
+      line = '  ' + word;   // indent the continuation
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 function table(type, name, values, comment) {
   return `const ${type} ${name}[] = { ${values.join(', ')} };${comment ? `   // ${comment}` : ''}`;
 }
@@ -122,6 +139,7 @@ export function buildGpcScript(entries, options = {}) {
   head.push(' *  --------------------------------------------------------------------------');
   head.push(` *  Game        : ${sanitize(game.name)}`);
   head.push(` *  Controller  : ${layout.label}`);
+  head.push(` *  Author      : ${author}`);
   head.push(` *  Generated   : ${generated} by Sticky Aim Weapon Studio`);
   head.push(` *  Settings    : sens ${first.profile.sensitivity}, ADS x${first.profile.adsMultiplier}, ` +
             `${first.profile.responseCurve} curve, deadzone ${first.profile.deadzone}, trim ${first.profile.strength}%`);
@@ -188,7 +206,7 @@ export function buildGpcScript(entries, options = {}) {
   slots.forEach(({ weapon, tuning }, i) => {
     head.push(` *   [${i}] ${sanitize(weapon.name, 30)} - ${weapon.rpm} RPM, ${weapon.fireMode}, ` +
               `recoil ${weapon.recoil.vertical}/${weapon.recoil.horizontal} (source: ${weapon.source}, confidence ${tuning.confidence})`);
-    tuning.diagnostics.forEach((d) => head.push(` *        ${sanitize(d, 100)}`));
+    tuning.diagnostics.forEach((d) => wrapComment(d, 96).forEach((line) => head.push(` *        ${line}`)));
     (weapon.warnings || []).forEach((w) => head.push(` *        ! ${sanitize(w, 100)}`));
   });
   head.push(' *');
@@ -212,8 +230,9 @@ export function buildGpcScript(entries, options = {}) {
 
   const body = [];
   body.push('');
-  body.push(`#pragma METAINFO("${title}", 1, 0, "${author}")`);
-  body.push('');
+  // No #pragma METAINFO here: that is Gtuner / Titan syntax, and Zen Studio's
+  // compiler rejects it outright ("Expected a top-level declaration. Got
+  // 'pragma'"). The name and author live in the header comment instead.
   body.push('/* ---------------- controller layout ---------------- */');
   body.push(`define BTN_FIRE   = ${layout.fire};`);
   body.push(`define BTN_ADS    = ${layout.ads};`);

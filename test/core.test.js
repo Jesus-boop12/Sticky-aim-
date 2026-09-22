@@ -5,7 +5,7 @@ import { normalizeWeapon, importFromCsv, importFromJson, importFromTextHeuristic
 import { computeTuning, normalizeProfile, normalizeCustomSettings, PHASE_COUNT } from '../core/tuning.js';
 import { buildGpcScript, scriptFileName, MAX_SLOTS } from '../core/gpc.js';
 import { catalogFor } from '../core/catalog.js';
-import { getGame } from '../core/games.js';
+import { getGame, listGames } from '../core/games.js';
 
 const preset = (game, i = 0) => catalogFor(game)[i];
 
@@ -146,7 +146,7 @@ function generate(gameId, count = 2, profile = {}) {
 
 test('generated script has the structure Zen Studio expects', () => {
   const { gpc } = generate('cod-mw3', 3);
-  for (const token of ['#pragma METAINFO', 'define BTN_FIRE', 'const int16 PH_UNTIL[]', 'init {', 'main {', 'function lim(', 'combo FEEDBACK {']) {
+  for (const token of ['define BTN_FIRE', 'const int16 PH_UNTIL[]', 'init {', 'main {', 'function lim(', 'combo FEEDBACK {']) {
     assert.ok(gpc.includes(token), `missing ${token}`);
   }
   assert.equal(gpc.split('{').length, gpc.split('}').length, 'unbalanced braces');
@@ -183,7 +183,7 @@ test('controller layout switches with the profile', () => {
 
 test('the header explains every slot', () => {
   const { gpc, entries } = generate('cod-mw3', 3);
-  const header = gpc.slice(0, gpc.indexOf('#pragma'));
+  const header = gpc.slice(0, gpc.indexOf('/* ---------------- controller layout'));
   for (const { weapon } of entries) assert.ok(header.includes(weapon.name), `${weapon.name} missing from header`);
   assert.match(header, /TRIMMING/);
   assert.match(header, /starting point, not a guarantee/);
@@ -204,7 +204,7 @@ test('file names are safe', () => {
 test('comment-unsafe characters cannot break out of the header block', () => {
   const weapon = normalizeWeapon({ name: 'evil */ set_val(1,100); /*', vertical: 40 }, { game: 'apex' });
   const gpc = buildGpcScript([{ weapon, tuning: computeTuning(weapon, {}) }]);
-  const header = gpc.slice(0, gpc.indexOf('#pragma'));
+  const header = gpc.slice(0, gpc.indexOf('/* ---------------- controller layout'));
   assert.equal(header.match(/\*\//g).length, 1, 'header must close exactly once');
 });
 
@@ -348,7 +348,7 @@ test('a rapid-fire override is per weapon, not per profile', () => {
 test('overrides are flagged in the script header', () => {
   const w = normalizeWeapon({ ...preset('cod-bo6'), overrides: { antiRecoilVertical: 51 } }, { game: 'cod-bo6' });
   const gpc = buildGpcScript([{ weapon: w, tuning: computeTuning(w, {}) }]);
-  const header = gpc.slice(0, gpc.indexOf('#pragma'));
+  const header = gpc.slice(0, gpc.indexOf('/* ---------------- controller layout'));
   assert.match(header, /V:51\*/);
   assert.match(header, /\* = value you set by hand/);
   assert.match(header, /RECOIL CONTROL/);
@@ -466,7 +466,7 @@ test('the script header records the settings it was tuned for', () => {
       { name: 'Vibration', value: 'Off', affects: 'none' }
     ]
   });
-  const header = buildGpcScript([{ weapon: w, tuning }]).split('#pragma')[0];
+  const header = buildGpcScript([{ weapon: w, tuning }]).split('/* ---------------- controller layout')[0];
   assert.match(header, /FOV 110 \(relative ADS\), vertical sens x0\.8, aim assist: strong/);
   assert.match(header, /YOUR OWN GAME SETTINGS/);
   assert.match(header, /Weapon mount\s+On\s+-15% vertical/);
@@ -478,7 +478,7 @@ test('a setting name cannot break out of the header comment', () => {
   const w = preset('apex');
   const tuning = computeTuning(w, { customSettings: [{ name: 'evil */ set_val(1,100); /*', value: '*/', affects: 'none' }] });
   const gpc = buildGpcScript([{ weapon: w, tuning }]);
-  const header = gpc.slice(0, gpc.indexOf('#pragma'));
+  const header = gpc.slice(0, gpc.indexOf('/* ---------------- controller layout'));
   assert.equal(header.match(/\*\//g).length, 1);
 });
 
@@ -543,4 +543,71 @@ test('every roster weapon tunes and generates without special-casing', () => {
       assert.ok(!/undefined|NaN/.test(gpc), `${weapon.name}: placeholder leaked into the script`);
     }
   }
+});
+
+test('nothing outside a comment starts with a preprocessor directive', () => {
+  // Zen Studio's compiler rejects "#pragma" - it is Gtuner / Titan syntax, and a
+  // stray '#' fails the whole build with "Expected a top-level declaration".
+  const { gpc } = generate('cod-mw3', 2);
+  const code = gpc.slice(gpc.indexOf('/* ---------------- controller layout'));
+  const offenders = code.split('\n').filter((line) => line.trim().startsWith('#'));
+  assert.deepEqual(offenders, [], 'no preprocessor directives may reach the compiler');
+  assert.ok(!gpc.includes('#pragma'), 'the whole file must be free of #pragma');
+});
+
+test('the script still names itself and its author', () => {
+  const weapons = catalogFor('cod-mw3').slice(0, 2);
+  const entries = weapons.map((weapon) => ({ weapon, tuning: computeTuning(weapon, {}) }));
+  const header = buildGpcScript(entries, { title: 'My Script', author: 'Someone' })
+    .split('/* ---------------- controller layout')[0];
+  assert.match(header, /My Script/);
+  assert.match(header, /Author\s+: Someone/);
+});
+
+test('a pull that fills the stick is called out, not shipped quietly', () => {
+  const w = normalizeWeapon({ name: 'Saturator', category: 'smg', rpm: 900, vertical: 60 }, { game: 'warzone' });
+  // very low sensitivity + a low ADS multiplier is what saturates the chain
+  const saturated = computeTuning(w, { sensitivity: 1.5, adsMultiplier: 0.6, responseCurve: 'dynamic' });
+  assert.equal(saturated.antiRecoil.vertical, 100, 'still clamped to the stick range');
+  assert.match(saturated.diagnostics.join(' '), /WARNING: this needs \d+ units of stick but 100 is the whole stick/);
+
+  const heavy = computeTuning(normalizeWeapon({ name: 'Heavy', category: 'lmg', vertical: 78 }, { game: 'pubg' }),
+    { sensitivity: getGame('pubg').referenceSens });
+  assert.ok(heavy.antiRecoil.vertical >= 70 && heavy.antiRecoil.vertical < 100);
+  assert.match(heavy.diagnostics.join(' '), /most of the stick and will drag your aim down/);
+
+  const sane = computeTuning(catalogFor('cod-mw3').find((x) => x.name === 'MCW'), {});
+  assert.ok(!sane.diagnostics.join(' ').includes('WARNING'), 'a normal tune must not cry wolf');
+});
+
+test("each game publishes its own reference settings, since a '6' is not portable", () => {
+  const games = Object.fromEntries(listGames().map((g) => [g.id, g]));
+  assert.equal(games.pubg.referenceSens, 50, 'PUBG runs a 1-100 scale');
+  assert.equal(games['cod-mw3'].referenceSens, 6);
+  assert.ok(games['r6siege'].referenceSens > games['cod-mw3'].referenceSens);
+  for (const g of Object.values(games)) {
+    assert.ok(g.referenceSens > 0 && g.referenceAds > 0 && g.referenceFov > 0, `${g.id} is missing a reference`);
+  }
+});
+
+test('a weapon tuned at its own game reference does not saturate', () => {
+  for (const game of ['pubg', 'r6siege', 'cod-mw3', 'apex', 'halo-infinite']) {
+    const reference = getGame(game).referenceSens;
+    for (const weapon of catalogFor(game)) {
+      const t = computeTuning(weapon, { sensitivity: reference });
+      assert.ok(t.antiRecoil.vertical < 100,
+        `${game}/${weapon.name} fills the whole stick at the game's own default sensitivity`);
+    }
+  }
+});
+
+test('a long diagnostic wraps in the header instead of being cut off', () => {
+  const w = normalizeWeapon({ name: 'Saturator', category: 'smg', rpm: 900, vertical: 60 }, { game: 'warzone' });
+  const tuning = computeTuning(w, { sensitivity: 1.5, adsMultiplier: 0.6, responseCurve: 'dynamic' });
+  const header = buildGpcScript([{ weapon: w, tuning }]).split('/* ---------------- controller layout')[0];
+  // the warning is wrapped across comment lines, so read it back the same way
+  const flat = header.replace(/^\s*\*\s*/gm, ' ').replace(/\s+/g, ' ');
+  assert.match(flat, /raise your in-game sensitivity or ADS multiplier, then re-generate\./,
+    'the warning must survive whole');
+  for (const line of header.split('\n')) assert.ok(line.length <= 120, `header line too long: ${line.length}`);
 });
