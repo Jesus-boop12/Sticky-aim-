@@ -258,6 +258,19 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
       </div>
       <div id="universal-summary" hidden></div>
       <pre class="script" id="script-out">Add a weapon, then press Generate script.</pre>
+      <details class="loadguide" style="margin-top:16px">
+        <summary>Script won't compile? Check it here</summary>
+        <p class="hint" style="margin-top:10px">Paste the script exactly as Zen Studio has it — including any
+          line you edited by hand — and this will point at the problem. Zen reports one terse error with no
+          line number, which is why a stray brace from a hand edit is so hard to find.</p>
+        <textarea id="check-text" placeholder="paste the .gpc contents here"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="btn-check">Check this script</button>
+          <span class="hint" id="check-result"></span>
+        </div>
+        <ul class="diagnostics" id="check-problems" style="margin-top:10px"></ul>
+      </details>
+
       <details class="loadguide" open style="margin-top:16px">
         <summary>Getting this onto your Cronus</summary>
         <ol>

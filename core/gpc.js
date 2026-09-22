@@ -18,6 +18,7 @@
 
 import { PHASE_COUNT } from './tuning.js';
 import { UNIVERSAL_CLASSES } from './universal.js';
+import { validateGpc } from './validate.js';
 import { getCategory, getGame } from './games.js';
 
 const MAX_SLOTS = 8;
@@ -434,7 +435,14 @@ export function buildGpcScript(entries, options = {}) {
   body.push('}');
   body.push('');
 
-  return head.concat(body).join('\n');
+  return finished(head.concat(body).join('\n'));
+}
+
+/** Nothing leaves this module without passing the structural checks. */
+function finished(script) {
+  const { ok, problems } = validateGpc(script);
+  if (!ok) throw new Error(`Generated script failed its own structure check: ${problems.join('; ')}`);
+  return script;
 }
 
 export function scriptFileName(entries, options = {}) {
@@ -774,7 +782,7 @@ export function buildUniversalScript(classProfiles, options = {}) {
   body.push('}');
   body.push('');
 
-  return head.concat(body).join('\n');
+  return finished(head.concat(body).join('\n'));
 }
 
 export { UNIVERSAL_CLASSES };

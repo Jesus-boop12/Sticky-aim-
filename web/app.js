@@ -750,6 +750,17 @@ function wire() {
     addWeapons(weapons);
   }));
 
+  // script checker
+  $('#btn-check').addEventListener('click', (e) => withBusy(e.target, async () => {
+    const result = await api('/api/check', { script: $('#check-text').value });
+    $('#check-result').textContent = result.ok
+      ? 'Structure is sound — if Zen still refuses it, send me the error.'
+      : `${result.problems.length} problem(s) found:`;
+    $('#check-problems').innerHTML = result.ok
+      ? ''
+      : result.problems.map((p) => `<li class="warn">${escapeHtml(p)}</li>`).join('');
+  }));
+
   // coach
   $('#btn-coach').addEventListener('click', (e) => withBusy(e.target, async () => {
     if (!state.weapons.length) throw new Error('Add a weapon first.');

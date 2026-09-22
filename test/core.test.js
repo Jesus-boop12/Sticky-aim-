@@ -5,6 +5,7 @@ import { normalizeWeapon, importFromCsv, importFromJson, importFromTextHeuristic
 import { computeTuning, normalizeProfile, normalizeCustomSettings, PHASE_COUNT } from '../core/tuning.js';
 import { buildGpcScript, buildUniversalScript, scriptFileName, MAX_SLOTS } from '../core/gpc.js';
 import { buildClassProfiles } from '../core/universal.js';
+import { validateGpc } from '../core/validate.js';
 import { catalogFor } from '../core/catalog.js';
 import { getGame, listGames } from '../core/games.js';
 
@@ -696,4 +697,41 @@ test('every variable the script uses is declared before main', () => {
     assert.equal(gpc.split('(').length, gpc.split(')').length, 'unbalanced parentheses');
     assert.ok(!/\bcls\b/.test(gpc), 'cls sits too close to Zen\'s cls_oled family to use as a variable');
   }
+});
+
+/* ---------------- structural validation ---------------- */
+
+test('the validator catches what Zen Studio only says one terse word about', () => {
+  const cases = [
+    ['main {\n  set_val(1, 0);\n}\n}\n', /closing brace with nothing open/],
+    ['#pragma METAINFO("x", 1, 0, "y")\nmain {\n}\n', /"#" directives are not GPC/],
+    ['main {\n  set_val(1, 0);\n', /block\(s\) never closed/],
+    ['main {\n  if(get_val(1) {\n  }\n}\n', /unbalanced parentheses/],
+    ['int a;\nmain {\n  a = TABLE[a];\n}\n', /TABLE\[\] is read but no such table is declared/],
+    ['main {\n  combo_run(NOPE);\n}\n', /combo NOPE is used but never defined/],
+    ['main {\n  idx = 1;\n}\n', /"idx" is assigned but never declared/]
+  ];
+  for (const [script, expected] of cases) {
+    const { ok, problems } = validateGpc(script);
+    assert.equal(ok, false, `should have been rejected: ${script.split('\n')[0]}`);
+    assert.match(problems.join(' | '), expected);
+  }
+});
+
+test('the validator passes what the emitters actually produce', () => {
+  for (const gpc of [
+    generate('cod-mw3', 3).gpc,
+    generate('apex', 1).gpc,
+    buildUniversalScript(buildClassProfiles('warzone', { sensitivity: 6 }), { game: 'warzone' }),
+    buildUniversalScript(buildClassProfiles('cod-bo7', { sensitivity: 6, controller: 'playstation' }), { game: 'cod-bo7' })
+  ]) {
+    const { ok, problems } = validateGpc(gpc);
+    assert.equal(ok, true, `a generated script failed its own check: ${problems.join('; ')}`);
+  }
+});
+
+test('an emitter refuses to hand back a broken script', () => {
+  // the gate is real: prove it by validating the gate itself
+  assert.doesNotThrow(() => generate('cod-mw3', 2));
+  assert.equal(validateGpc(generate('cod-mw3', 2).gpc).ok, true);
 });

@@ -18,6 +18,7 @@ import { computeTuning, normalizeProfile, DEFAULT_PROFILE, RAMP_SPEEDS, STICKY_S
          AIM_ASSIST_SETTINGS, CUSTOM_TARGETS } from '../core/tuning.js';
 import { buildGpcScript, buildUniversalScript, scriptFileName, listLayouts, MAX_SLOTS } from '../core/gpc.js';
 import { buildClassProfiles, UNIVERSAL_CLASSES } from '../core/universal.js';
+import { validateGpc } from '../core/validate.js';
 import { aiEnabled, extractWeaponsFromText, extractWeaponsFromImage, coach, MODEL } from './ai.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -146,6 +147,11 @@ const ROUTES = {
       fileName: scriptFileName(entries, options),
       entries
     };
+  },
+
+  'POST /api/check': async (body) => {
+    if (!String(body.script || '').trim()) throw new Error('Paste a script to check.');
+    return validateGpc(body.script);
   },
 
   'POST /api/coach': async (body) => {

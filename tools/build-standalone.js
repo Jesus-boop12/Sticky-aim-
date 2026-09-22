@@ -17,7 +17,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 /** Dependency order matters: concatenation replaces the module graph. */
-const CORE_MODULES = ['core/games.js', 'core/weapons.js', 'core/catalog.js', 'core/tuning.js', 'core/universal.js', 'core/gpc.js', 'core/coach.js'];
+const CORE_MODULES = ['core/games.js', 'core/weapons.js', 'core/catalog.js', 'core/tuning.js', 'core/universal.js', 'core/validate.js', 'core/gpc.js', 'core/coach.js'];
 
 /** Flatten one ES module into plain top-level code. */
 function inlineModule(src) {
@@ -110,6 +110,10 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
       const list = entries();
       return { gpc: buildGpcScript(list, options), fileName: scriptFileName(list, options), entries: list };
     }
+
+    case '/api/check':
+      if (!String(body.script || '').trim()) throw new Error('Paste a script to check.');
+      return validateGpc(body.script);
 
     case '/api/coach':
       return { text: offlineCoachNotes(entries()), mode: 'offline' };
