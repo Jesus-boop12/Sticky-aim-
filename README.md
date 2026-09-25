@@ -1,5 +1,7 @@
 # Sticky Aim Weapon Studio
 
+> **Also in this repo:** [Dropship Store Builder](dropship-builder/README.md). Paste a product link and get a complete, ready-to-upload dropshipping store.
+
 Import a weapon from any game — preset, screenshot, JSON, CSV or a sentence you
 typed — and get a tuned Cronus **GPC** script written for that specific weapon:
 anti-recoil shaped to its recoil pattern, rapid fire at the game's cap, sticky

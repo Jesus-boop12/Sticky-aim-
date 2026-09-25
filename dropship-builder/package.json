@@ -1,0 +1,16 @@
+{
+  "name": "dropship-store-builder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Paste a product link, get a complete ready-to-upload dropshipping store.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0"
+  }
+}

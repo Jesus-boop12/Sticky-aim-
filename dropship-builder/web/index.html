@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dropship Store Builder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M18 24h28l-3 22H21z' fill='none' stroke='white' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M25 24a7 7 0 0 1 14 0' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>Dropship Store Builder</a>
+  <span class="ai-pill" id="ai-pill" hidden></span>
+</header>
+
+<!-- 1. Start -->
+<section class="start" id="start">
+  <h1>Paste a product link.<br>Get a complete store.</h1>
+  <p class="sub">Product page, cart, checkout, FAQ, about, contact and every policy page, written, priced and designed for you. Ready to upload in one click.</p>
+  <form class="link-form" id="link-form">
+    <label class="sr-only" for="url">Product link</label>
+    <input id="url" name="url" type="url" inputmode="url" autocomplete="off" required
+      placeholder="https://… paste a product link from AliExpress, Amazon, a Shopify store…">
+    <button class="btn primary big" type="submit">Build my store</button>
+  </form>
+  <p class="hint">Works with Shopify stores, AliExpress, Amazon, CJ, eBay, Etsy and most shops that list products.</p>
+
+  <details class="options" id="options">
+    <summary>Optional settings <span class="muted">(everything has a sensible default)</span></summary>
+    <div class="grid">
+      <label>Store name <input name="storeName" placeholder="Leave empty to generate one"></label>
+      <label>Theme <select name="theme" id="theme-select"><option value="auto">Pick for me</option></select></label>
+      <label>Markup <span class="muted">(× supplier price)</span><input name="markup" type="number" step="0.1" min="1" max="20" value="2.5"></label>
+      <label>Fixed selling price <input name="price" type="number" step="0.01" min="0" placeholder="Use markup"></label>
+      <label>Contact email <input name="contactEmail" type="email" placeholder="you@yourstore.com"></label>
+      <label>Stripe Payment Link <input name="checkoutUrl" type="url" placeholder="https://buy.stripe.com/…"></label>
+      <label>PayPal.me username <input name="paypalMe" placeholder="yourname"></label>
+      <label>Delivery time <span class="muted">(business days)</span><input name="deliveryDays" value="7-15"></label>
+      <label>Returns window <span class="muted">(days, 0 = none)</span><input name="returnDays" type="number" min="0" max="365" value="30"></label>
+      <label class="check"><input name="freeShipping" type="checkbox" checked> Free shipping</label>
+      <label class="check" id="ai-toggle"><input name="useAi" type="checkbox" checked> Let Claude write the copy</label>
+    </div>
+  </details>
+</section>
+
+<!-- 2. Progress -->
+<section class="progress" id="progress" hidden>
+  <div class="spinner" aria-hidden="true"></div>
+  <h2 id="progress-title">Building your store…</h2>
+  <ol class="steps" id="steps">
+    <li data-step="read">Reading the product page</li>
+    <li data-step="price">Setting your prices</li>
+    <li data-step="copy">Writing your store copy</li>
+    <li data-step="images">Downloading product photos</li>
+    <li data-step="build">Building your pages</li>
+  </ol>
+</section>
+
+<!-- 2b. Manual entry when a page cannot be read -->
+<section class="manual" id="manual" hidden>
+  <h2>We couldn't read that page</h2>
+  <p class="muted" id="manual-reason"></p>
+  <p>Fill in what you know and we'll build the store from that.</p>
+  <form id="manual-form" class="stack">
+    <label>Product name <input name="title" required></label>
+    <label>Supplier price <input name="price" type="number" step="0.01" min="0"></label>
+    <label>Photo links <span class="muted">(one per line - right-click a product photo, "Copy image address")</span><textarea name="images" rows="4"></textarea></label>
+    <label>Description or bullet points <textarea name="description" rows="6"></textarea></label>
+    <div class="row">
+      <button class="btn primary" type="submit">Build my store</button>
+      <button class="btn" type="button" data-restart>Try another link</button>
+    </div>
+  </form>
+</section>
+
+<!-- 3. Result -->
+<section class="result" id="result" hidden>
+  <aside class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Your store</p>
+        <h2 id="store-title"></h2>
+      </div>
+      <button class="btn small" type="button" data-restart>New store</button>
+    </div>
+
+    <div class="notices" id="notices"></div>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="store">Store</button>
+      <button role="tab" aria-selected="false" data-tab="pricing">Pricing</button>
+      <button role="tab" aria-selected="false" data-tab="content">Content</button>
+      <button role="tab" aria-selected="false" data-tab="photos">Photos</button>
+      <button role="tab" aria-selected="false" data-tab="checkout">Checkout</button>
+    </nav>
+
+    <form id="edit-form" class="tab-panels">
+      <div class="tab-panel stack" data-panel="store">
+        <label>Store name <input data-copy="storeName"></label>
+        <label>Theme <div class="swatches" id="swatches"></div></label>
+        <label>Product name <input data-copy="productTitle"></label>
+        <label>Tagline <input data-copy="tagline"></label>
+        <label>Top bar message <input data-copy="announcement"></label>
+        <label>Headline <input data-copy="heroHeadline"></label>
+        <label>Short description <textarea data-copy="shortDescription" rows="3"></textarea></label>
+        <label>SEO title <input data-copy="seoTitle"></label>
+        <label>SEO description <textarea data-copy="seoDescription" rows="2"></textarea></label>
+      </div>
+
+      <div class="tab-panel stack" data-panel="pricing" hidden>
+        <div class="profit" id="profit"></div>
+        <label>Supplier price <input data-product="price" type="number" step="0.01" min="0"></label>
+        <label>Markup <span class="muted">(× supplier price)</span><input data-setting="markup" type="number" step="0.1" min="1" max="20"></label>
+        <label>Fixed selling price <span class="muted">(overrides markup)</span><input data-setting="price" type="number" step="0.01" min="0" placeholder="Use markup"></label>
+        <label>Price ending
+          <select data-setting="priceEnding"><option value=".99">.99</option><option value=".95">.95</option><option value=".00">.00</option></select></label>
+        <label>Currency <input data-setting="currency" maxlength="3" placeholder="Same as supplier"></label>
+        <label>"Compare at" price <span class="muted">(only a real former price)</span><input data-setting="compareAt" type="number" step="0.01" min="0"></label>
+      </div>
+
+      <div class="tab-panel stack" data-panel="content" hidden>
+        <label>Product story <span class="muted">(one paragraph per line)</span><textarea data-copy-lines="longDescription" rows="6"></textarea></label>
+        <label>Feature bullets <span class="muted">(one per line)</span><textarea data-copy-lines="features" rows="6"></textarea></label>
+        <label>Benefits <span class="muted">(Title: text, one per line)</span><textarea id="benefits-text" rows="6"></textarea></label>
+        <label>FAQ <span class="muted">(Q: … then A: … lines)</span><textarea id="faq-text" rows="10"></textarea></label>
+        <label>About page <span class="muted">(one paragraph per line)</span><textarea data-copy-lines="aboutStory" rows="5"></textarea></label>
+        <label>Guarantee title <input data-copy="guaranteeTitle"></label>
+        <label>Guarantee text <textarea data-copy="guaranteeText" rows="3"></textarea></label>
+        <label>Add-to-cart button <input data-copy="ctaText"></label>
+      </div>
+
+      <div class="tab-panel stack" data-panel="photos" hidden>
+        <p class="muted small">The first photo is the main one. Click × to remove a photo, or add another by link.</p>
+        <div class="photos" id="photos"></div>
+        <div class="row"><input id="photo-url" type="url" placeholder="https://… image link"><button class="btn" type="button" id="photo-add">Add</button></div>
+      </div>
+
+      <div class="tab-panel stack" data-panel="checkout" hidden>
+        <p class="muted small">Add one payment method so customers can pay. Without one, orders are emailed to you and you send an invoice.</p>
+        <label>Stripe Payment Link <input data-setting="checkoutUrl" type="url" placeholder="https://buy.stripe.com/…"></label>
+        <label>PayPal.me username <input data-setting="paypalMe" placeholder="yourname"></label>
+        <label>Contact email <input data-setting="contactEmail" type="email" placeholder="you@yourstore.com"></label>
+        <label>Business name <span class="muted">(for policies)</span><input data-setting="businessName"></label>
+        <label>Business address <span class="muted">(optional)</span><input data-setting="businessAddress"></label>
+        <label>Website address <span class="muted">(for SEO, once you have one)</span><input data-setting="siteUrl" type="url" placeholder="https://yourstore.com"></label>
+        <label class="check"><input data-setting="freeShipping" type="checkbox"> Free shipping</label>
+        <label>Shipping fee <span class="muted">(if not free)</span><input data-setting="shippingFee" type="number" step="0.01" min="0"></label>
+        <div class="row2">
+          <label>Processing days <input data-setting="processingDays"></label>
+          <label>Delivery days <input data-setting="deliveryDays"></label>
+        </div>
+        <label>Returns window <span class="muted">(days, 0 = no returns)</span><input data-setting="returnDays" type="number" min="0" max="365"></label>
+      </div>
+
+      <div class="apply-bar">
+        <button class="btn primary" type="submit" id="apply">Update preview</button>
+        <span class="muted small" id="apply-status"></span>
+      </div>
+    </form>
+  </aside>
+
+  <div class="stage">
+    <div class="toolbar">
+      <select id="page-select" aria-label="Page">
+        <option value="index.html">Home / product</option>
+        <option value="cart.html">Cart</option>
+        <option value="checkout.html">Checkout</option>
+        <option value="about.html">About</option>
+        <option value="faq.html">FAQ</option>
+        <option value="contact.html">Contact</option>
+        <option value="track-order.html">Track order</option>
+        <option value="shipping-policy.html">Shipping policy</option>
+        <option value="refund-policy.html">Refund policy</option>
+        <option value="privacy-policy.html">Privacy policy</option>
+        <option value="terms-of-service.html">Terms of service</option>
+      </select>
+      <div class="seg" role="group" aria-label="Device">
+        <button type="button" data-device="desktop" aria-pressed="true">Desktop</button>
+        <button type="button" data-device="mobile" aria-pressed="false">Mobile</button>
+      </div>
+      <a class="btn small" id="open-tab" target="_blank" rel="noopener">Open in new tab</a>
+      <a class="btn primary" id="download">Download store (.zip)</a>
+    </div>
+    <div class="frame-wrap" id="frame-wrap"><iframe id="frame" title="Store preview"></iframe></div>
+    <details class="next">
+      <summary>How to put it online and take payments</summary>
+      <ol>
+        <li>Click <strong>Download store</strong> and unzip it.</li>
+        <li>Go to <a href="https://app.netlify.com/drop" target="_blank" rel="noopener">app.netlify.com/drop</a> and drag the folder onto the page. Your store is live, free.</li>
+        <li>Create a <a href="https://dashboard.stripe.com/payment-links" target="_blank" rel="noopener">Stripe Payment Link</a> for your product at your selling price, or use your PayPal.me name, and paste it into the <strong>Checkout</strong> tab. Then download and upload again.</li>
+        <li>When an order comes in, buy the product from your supplier using the customer's address and email them the tracking number.</li>
+      </ol>
+      <p class="muted small">The README inside the ZIP has the full launch checklist.</p>
+    </details>
+  </div>
+</section>
+
+<script src="app.js" type="module"></script>
+</body>
+</html>
