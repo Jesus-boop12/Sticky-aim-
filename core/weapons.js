@@ -165,6 +165,9 @@ function normalizeAttachments(raw) {
     .map((a) => {
       if (typeof a === 'string') return { name: a, recoilVertical: 0, recoilHorizontal: 0, rpm: 0, adsTime: 0 };
       return {
+        id: a.id,
+        slot: a.slot,
+        note: a.note || '',
         name: String(a.name || a.attachment || 'attachment'),
         // Modifiers are fractions: -0.15 means "cuts 15% of the recoil".
         recoilVertical: clamp(num(a.recoilVertical ?? a.vertical ?? a.recoil, 0), -0.9, 2),
@@ -232,6 +235,9 @@ export function normalizeWeapon(raw = {}, { game = 'generic' } = {}) {
       pattern
     },
     attachments: normalizeAttachments(raw.attachments),
+    attachmentIds: Array.isArray(raw.attachmentIds)
+      ? raw.attachmentIds.filter((id) => typeof id === 'string').slice(0, 8)
+      : normalizeAttachments(raw.attachments).map((a) => a.id).filter(Boolean),
     overrides: normalizeOverrides(raw.overrides),
     notes: String(pick(raw, 'notes') ?? '').slice(0, 400),
     source: raw.source || 'manual',

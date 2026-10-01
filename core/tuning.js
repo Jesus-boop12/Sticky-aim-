@@ -34,6 +34,8 @@ export const DEFAULT_PROFILE = {
   rapidFire: 'auto',           // 'auto' | 'on' | 'off'
   hairTrigger: true,
   antiDeadzone: false,
+  holdBreath: false,           // hold the steady-aim button for you while ADS
+  autoPing: 'off',             // 'off' | 'ads' - blind ping, see the script header
   adsSlowPercent: 100,         // 100 = off; 80 = right stick runs at 80% while firing
 
   /* ---- recoil control ---- */
@@ -101,6 +103,8 @@ export function normalizeProfile(raw = {}) {
     stickyAim: p.stickyAim !== false,
     hairTrigger: p.hairTrigger !== false,
     antiDeadzone: Boolean(p.antiDeadzone),
+    holdBreath: Boolean(p.holdBreath),
+    autoPing: ['off', 'ads'].includes(p.autoPing) ? p.autoPing : 'off',
     adsSlowPercent: clamp(Math.round(Number(p.adsSlowPercent) ?? 100), 50, 100),
 
     horizontalEnabled: p.horizontalEnabled !== false,
@@ -149,10 +153,15 @@ export function computeTuning(weapon, rawProfile = {}) {
 
   /* ---- multiplier chain -------------------------------------------- */
   const base = weapon.recoil.vertical;
-  const period = shotPeriodMs(weapon.rpm);
+
+  // Attachments move the fire rate as well as the recoil, and a faster gun
+  // needs a different cadence, not just a bigger pull.
+  const attachRpm = weapon.attachments.reduce((acc, a) => acc * (1 + (a.rpm || 0)), 1);
+  const rpm = clamp(Math.round(weapon.rpm * attachRpm), 30, 2000);
+  const period = shotPeriodMs(rpm);
 
   // Faster guns stack more kick between polls, so they need a bigger hold.
-  const rpmFactor = clamp(Math.sqrt(weapon.rpm / 600), 0.7, 1.5);
+  const rpmFactor = clamp(Math.sqrt(rpm / 600), 0.7, 1.5);
 
   // Higher in-game sensitivity means the same stick deflection turns further,
   // so the required stick value shrinks.
@@ -222,6 +231,22 @@ export function computeTuning(weapon, rawProfile = {}) {
   }
 
   auto.antiRecoilVertical = peakV;
+  if (weapon.attachments.length) {
+    const applied = weapon.attachments.filter((a) => a.recoilVertical || a.recoilHorizontal || a.rpm || a.adsTime);
+    const noted = weapon.attachments.filter((a) => !applied.includes(a));
+    if (applied.length) {
+      diagnostics.push(`Attachments: ${applied.map((a) =>
+        `${a.name} (${[a.recoilVertical && `${a.recoilVertical > 0 ? '+' : ''}${Math.round(a.recoilVertical * 100)}% vertical`,
+          a.recoilHorizontal && `${a.recoilHorizontal > 0 ? '+' : ''}${Math.round(a.recoilHorizontal * 100)}% horizontal`,
+          a.rpm && `${a.rpm > 0 ? '+' : ''}${Math.round(a.rpm * 100)}% fire rate`].filter(Boolean).join(', ')})`
+      ).join('; ')}.`);
+    }
+    if (noted.length) {
+      diagnostics.push(`Also fitted, with no effect on the pull: ${noted.map((a) => a.name).join(', ')}.`);
+    }
+    if (attachRpm !== 1) diagnostics.push(`Fire rate with attachments: ${weapon.rpm} -> ${rpm} RPM.`);
+  }
+
   if (ov.antiRecoilVertical !== undefined) {
     diagnostics.push(`Vertical set by hand: ${peakV} -> ${ov.antiRecoilVertical} (calculated value ignored).`);
     peakV = ov.antiRecoilVertical;
@@ -295,7 +320,7 @@ export function computeTuning(weapon, rawProfile = {}) {
     rapidMode === 'on' ||
     (rapidMode === 'auto' && weapon.fireMode === 'semi' && category.rapidFireDefault);
   const rapidTargetRpm = clamp(
-    Math.min(weapon.rpm, game.semiFireCapRpm) * customFactor(profile, 'rapidFire'),
+    Math.min(rpm, game.semiFireCapRpm) * customFactor(profile, 'rapidFire'),
     60,
     game.semiFireCapRpm
   );
@@ -415,6 +440,13 @@ export function computeTuning(weapon, rawProfile = {}) {
     );
   }
 
+  if (profile.holdBreath) {
+    diagnostics.push('Hold breath: the steady-aim button is held for you whenever you are aiming.');
+  }
+  if (profile.autoPing === 'ads') {
+    diagnostics.push('Auto ping: one ping each time you aim. The device cannot see enemies - it pings wherever you are pointed.');
+  }
+
   return {
     weaponId: weapon.id,
     weaponName: weapon.name,
@@ -434,8 +466,11 @@ export function computeTuning(weapon, rawProfile = {}) {
     sticky,
     antiDeadzone,
     hairTrigger: { enabled: profile.hairTrigger, threshold: 12 },
+    holdBreath: { enabled: profile.holdBreath },
+    autoPing: { mode: profile.autoPing },
     adsSlow: { enabled: profile.adsSlowPercent < 100, percent: profile.adsSlowPercent },
     shotPeriodMs: round(period),
+    effectiveRpm: rpm,
     diagnostics,
     overridden,
     auto,

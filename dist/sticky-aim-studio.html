@@ -438,6 +438,15 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
       <div class="row" style="margin-top:10px">
         <label class="toggle"><input type="checkbox" id="p-hairTrigger"> Hair triggers</label>
         <label class="toggle"><input type="checkbox" id="p-antiDeadzone"> Anti-deadzone</label>
+        <label class="toggle"><input type="checkbox" id="p-holdBreath"> Hold breath while ADS</label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="field" style="max-width:280px">Auto ping
+          <select id="p-autoPing">
+            <option value="off">Off</option>
+            <option value="ads">One ping each time you aim</option>
+          </select>
+        </label>
       </div>
 
       <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
@@ -937,6 +946,9 @@ function normalizeAttachments(raw) {
     .map((a) => {
       if (typeof a === 'string') return { name: a, recoilVertical: 0, recoilHorizontal: 0, rpm: 0, adsTime: 0 };
       return {
+        id: a.id,
+        slot: a.slot,
+        note: a.note || '',
         name: String(a.name || a.attachment || 'attachment'),
         // Modifiers are fractions: -0.15 means "cuts 15% of the recoil".
         recoilVertical: clamp(num(a.recoilVertical ?? a.vertical ?? a.recoil, 0), -0.9, 2),
@@ -1004,6 +1016,9 @@ function normalizeWeapon(raw = {}, { game = 'generic' } = {}) {
       pattern
     },
     attachments: normalizeAttachments(raw.attachments),
+    attachmentIds: Array.isArray(raw.attachmentIds)
+      ? raw.attachmentIds.filter((id) => typeof id === 'string').slice(0, 8)
+      : normalizeAttachments(raw.attachments).map((a) => a.id).filter(Boolean),
     overrides: normalizeOverrides(raw.overrides),
     notes: String(pick(raw, 'notes') ?? '').slice(0, 400),
     source: raw.source || 'manual',
@@ -1418,6 +1433,131 @@ function catalogGameIds() {
   return Object.keys(ROSTERS);
 }
 
+/* ---- core/attachments.js ---- */
+/**
+ * Attachments.
+ *
+ * Same honesty rule as the weapon rosters: the slots and the attachment names
+ * are real, the numbers are estimates. Every effect here is a fraction applied
+ * to the base weapon - `recoilVertical: -0.12` means "takes 12% off the
+ * vertical kick" - and they are the kind of figures a player would recognise,
+ * not values pulled out of a game's files.
+ *
+ * Attachments that change handling without changing recoil are listed with
+ * zero effect and a note, so they still show up in the script header: a tune
+ * built for a 4x optic is not the same tune as one built for a red dot, and
+ * the header should say which one you were holding.
+ */
+
+const SLOTS = [
+  { id: 'muzzle', label: 'Muzzle' },
+  { id: 'barrel', label: 'Barrel' },
+  { id: 'optic', label: 'Optic' },
+  { id: 'underbarrel', label: 'Underbarrel' },
+  { id: 'stock', label: 'Stock' },
+  { id: 'reargrip', label: 'Rear grip' },
+  { id: 'magazine', label: 'Magazine' },
+  { id: 'laser', label: 'Laser' }
+];
+
+/**
+ * effects: recoilVertical / recoilHorizontal / rpm / adsTime, all fractions.
+ * A positive recoil number means the attachment makes the gun kick harder.
+ */
+const ATTACHMENTS = [
+  /* ---- muzzle ---- */
+  { id: 'compensator', slot: 'muzzle', name: 'Compensator', effects: { recoilVertical: -0.12, recoilHorizontal: 0.03 },
+    note: 'Trades a little horizontal sway for vertical control.' },
+  { id: 'muzzle-brake', slot: 'muzzle', name: 'Muzzle Brake', effects: { recoilVertical: -0.08, recoilHorizontal: -0.08 } },
+  { id: 'suppressor', slot: 'muzzle', name: 'Suppressor', effects: { recoilVertical: -0.05, adsTime: 0.08 } },
+  { id: 'flash-hider', slot: 'muzzle', name: 'Flash Hider', effects: {}, note: 'Visual only - no effect on the pull.' },
+
+  /* ---- barrel ---- */
+  { id: 'long-barrel', slot: 'barrel', name: 'Long / heavy barrel', effects: { recoilVertical: -0.10, adsTime: 0.12 } },
+  { id: 'short-barrel', slot: 'barrel', name: 'Short / light barrel', effects: { recoilVertical: 0.08, adsTime: -0.10 } },
+  { id: 'reinforced-barrel', slot: 'barrel', name: 'Reinforced barrel', effects: { recoilVertical: -0.06, recoilHorizontal: -0.04, adsTime: 0.06 } },
+
+  /* ---- optic: zoom magnifies the recoil you have to correct ---- */
+  { id: 'iron-sights', slot: 'optic', name: 'Iron sights', effects: {} },
+  { id: 'reflex', slot: 'optic', name: 'Red dot / reflex', effects: { adsTime: 0.03 } },
+  { id: 'holo', slot: 'optic', name: 'Holographic', effects: { adsTime: 0.05 } },
+  { id: 'scope-3x', slot: 'optic', name: '3x scope', effects: { recoilVertical: 0.12, recoilHorizontal: 0.12, adsTime: 0.10 },
+    note: 'Magnification multiplies what the recoil looks like, so the correction has to grow with it.' },
+  { id: 'scope-4x', slot: 'optic', name: '4x / 4.5x scope', effects: { recoilVertical: 0.20, recoilHorizontal: 0.20, adsTime: 0.14 },
+    note: 'Same again, harder.' },
+  { id: 'scope-8x', slot: 'optic', name: '8x+ sniper scope', effects: { recoilVertical: 0.35, recoilHorizontal: 0.35, adsTime: 0.20 } },
+
+  /* ---- underbarrel ---- */
+  { id: 'vertical-grip', slot: 'underbarrel', name: 'Vertical foregrip', effects: { recoilVertical: -0.10, recoilHorizontal: 0.02 } },
+  { id: 'angled-grip', slot: 'underbarrel', name: 'Angled foregrip', effects: { recoilHorizontal: -0.10, adsTime: -0.04 } },
+  { id: 'ranger-grip', slot: 'underbarrel', name: 'Ranger foregrip', effects: { recoilVertical: -0.06, recoilHorizontal: -0.06 } },
+  { id: 'bipod', slot: 'underbarrel', name: 'Bipod', effects: {},
+    note: 'Only helps mounted or prone, which the script cannot know about - recorded, not applied.' },
+
+  /* ---- stock ---- */
+  { id: 'heavy-stock', slot: 'stock', name: 'Heavy stock', effects: { recoilVertical: -0.10, recoilHorizontal: -0.05, adsTime: 0.08 } },
+  { id: 'light-stock', slot: 'stock', name: 'Light stock', effects: { recoilVertical: 0.06, adsTime: -0.12 } },
+  { id: 'no-stock', slot: 'stock', name: 'No stock', effects: { recoilVertical: 0.14, recoilHorizontal: 0.08, adsTime: -0.18 } },
+
+  /* ---- rear grip ---- */
+  { id: 'rubber-grip', slot: 'reargrip', name: 'Rubberised grip', effects: { recoilVertical: -0.06 } },
+  { id: 'quickdraw-grip', slot: 'reargrip', name: 'Quickdraw grip', effects: { adsTime: -0.10 } },
+  { id: 'assault-grip', slot: 'reargrip', name: 'Assault grip', effects: { recoilHorizontal: -0.06 } },
+
+  /* ---- magazine ---- */
+  { id: 'extended-mag', slot: 'magazine', name: 'Extended magazine', effects: { adsTime: 0.05 },
+    note: 'More rounds means the sustained phase of the pull matters more.' },
+  { id: 'fast-mag', slot: 'magazine', name: 'Fast magazine', effects: {} },
+  { id: 'heavy-rounds', slot: 'magazine', name: 'High-grain / heavy rounds', effects: { recoilVertical: 0.06, recoilHorizontal: 0.04 } },
+
+  /* ---- laser ---- */
+  { id: 'laser-steady', slot: 'laser', name: 'Steady aim laser', effects: { adsTime: -0.06 } },
+  { id: 'laser-target', slot: 'laser', name: 'Target laser', effects: { recoilHorizontal: -0.04, adsTime: -0.04 } }
+];
+
+const ATTACHMENT_BY_ID = new Map(ATTACHMENTS.map((a) => [a.id, a]));
+
+function getAttachment(id) {
+  return ATTACHMENT_BY_ID.get(id) || null;
+}
+
+function attachmentsForSlot(slotId) {
+  return ATTACHMENTS.filter((a) => a.slot === slotId);
+}
+
+/** Catalog shaped for the UI: slots, each with the attachments that fit it. */
+function attachmentCatalog() {
+  return SLOTS.map((slot) => ({
+    ...slot,
+    options: attachmentsForSlot(slot.id).map(({ id, name, effects, note }) => ({ id, name, effects, note: note || '' }))
+  }));
+}
+
+/**
+ * Turn a picked-attachment list (ids, or {slot, id} pairs) into the modifier
+ * shape the weapon model expects. Unknown ids are dropped rather than guessed.
+ */
+function resolveAttachments(picked) {
+  if (!Array.isArray(picked)) return [];
+  const bySlot = new Map();
+  for (const entry of picked) {
+    const id = typeof entry === 'string' ? entry : entry?.id;
+    const attachment = getAttachment(id);
+    if (!attachment) continue;
+    bySlot.set(attachment.slot, attachment);   // one attachment per slot
+  }
+  return [...bySlot.values()].map((a) => ({
+    id: a.id,
+    name: a.name,
+    slot: a.slot,
+    recoilVertical: a.effects.recoilVertical || 0,
+    recoilHorizontal: a.effects.recoilHorizontal || 0,
+    rpm: a.effects.rpm || 0,
+    adsTime: a.effects.adsTime || 0,
+    note: a.note || ''
+  }));
+}
+
 /* ---- core/tuning.js ---- */
 /**
  * Stats -> script parameters.
@@ -1454,6 +1594,8 @@ const DEFAULT_PROFILE = {
   rapidFire: 'auto',           // 'auto' | 'on' | 'off'
   hairTrigger: true,
   antiDeadzone: false,
+  holdBreath: false,           // hold the steady-aim button for you while ADS
+  autoPing: 'off',             // 'off' | 'ads' - blind ping, see the script header
   adsSlowPercent: 100,         // 100 = off; 80 = right stick runs at 80% while firing
 
   /* ---- recoil control ---- */
@@ -1521,6 +1663,8 @@ function normalizeProfile(raw = {}) {
     stickyAim: p.stickyAim !== false,
     hairTrigger: p.hairTrigger !== false,
     antiDeadzone: Boolean(p.antiDeadzone),
+    holdBreath: Boolean(p.holdBreath),
+    autoPing: ['off', 'ads'].includes(p.autoPing) ? p.autoPing : 'off',
     adsSlowPercent: clamp(Math.round(Number(p.adsSlowPercent) ?? 100), 50, 100),
 
     horizontalEnabled: p.horizontalEnabled !== false,
@@ -1569,10 +1713,15 @@ function computeTuning(weapon, rawProfile = {}) {
 
   /* ---- multiplier chain -------------------------------------------- */
   const base = weapon.recoil.vertical;
-  const period = shotPeriodMs(weapon.rpm);
+
+  // Attachments move the fire rate as well as the recoil, and a faster gun
+  // needs a different cadence, not just a bigger pull.
+  const attachRpm = weapon.attachments.reduce((acc, a) => acc * (1 + (a.rpm || 0)), 1);
+  const rpm = clamp(Math.round(weapon.rpm * attachRpm), 30, 2000);
+  const period = shotPeriodMs(rpm);
 
   // Faster guns stack more kick between polls, so they need a bigger hold.
-  const rpmFactor = clamp(Math.sqrt(weapon.rpm / 600), 0.7, 1.5);
+  const rpmFactor = clamp(Math.sqrt(rpm / 600), 0.7, 1.5);
 
   // Higher in-game sensitivity means the same stick deflection turns further,
   // so the required stick value shrinks.
@@ -1642,6 +1791,22 @@ function computeTuning(weapon, rawProfile = {}) {
   }
 
   auto.antiRecoilVertical = peakV;
+  if (weapon.attachments.length) {
+    const applied = weapon.attachments.filter((a) => a.recoilVertical || a.recoilHorizontal || a.rpm || a.adsTime);
+    const noted = weapon.attachments.filter((a) => !applied.includes(a));
+    if (applied.length) {
+      diagnostics.push(`Attachments: ${applied.map((a) =>
+        `${a.name} (${[a.recoilVertical && `${a.recoilVertical > 0 ? '+' : ''}${Math.round(a.recoilVertical * 100)}% vertical`,
+          a.recoilHorizontal && `${a.recoilHorizontal > 0 ? '+' : ''}${Math.round(a.recoilHorizontal * 100)}% horizontal`,
+          a.rpm && `${a.rpm > 0 ? '+' : ''}${Math.round(a.rpm * 100)}% fire rate`].filter(Boolean).join(', ')})`
+      ).join('; ')}.`);
+    }
+    if (noted.length) {
+      diagnostics.push(`Also fitted, with no effect on the pull: ${noted.map((a) => a.name).join(', ')}.`);
+    }
+    if (attachRpm !== 1) diagnostics.push(`Fire rate with attachments: ${weapon.rpm} -> ${rpm} RPM.`);
+  }
+
   if (ov.antiRecoilVertical !== undefined) {
     diagnostics.push(`Vertical set by hand: ${peakV} -> ${ov.antiRecoilVertical} (calculated value ignored).`);
     peakV = ov.antiRecoilVertical;
@@ -1715,7 +1880,7 @@ function computeTuning(weapon, rawProfile = {}) {
     rapidMode === 'on' ||
     (rapidMode === 'auto' && weapon.fireMode === 'semi' && category.rapidFireDefault);
   const rapidTargetRpm = clamp(
-    Math.min(weapon.rpm, game.semiFireCapRpm) * customFactor(profile, 'rapidFire'),
+    Math.min(rpm, game.semiFireCapRpm) * customFactor(profile, 'rapidFire'),
     60,
     game.semiFireCapRpm
   );
@@ -1835,6 +2000,13 @@ function computeTuning(weapon, rawProfile = {}) {
     );
   }
 
+  if (profile.holdBreath) {
+    diagnostics.push('Hold breath: the steady-aim button is held for you whenever you are aiming.');
+  }
+  if (profile.autoPing === 'ads') {
+    diagnostics.push('Auto ping: one ping each time you aim. The device cannot see enemies - it pings wherever you are pointed.');
+  }
+
   return {
     weaponId: weapon.id,
     weaponName: weapon.name,
@@ -1854,8 +2026,11 @@ function computeTuning(weapon, rawProfile = {}) {
     sticky,
     antiDeadzone,
     hairTrigger: { enabled: profile.hairTrigger, threshold: 12 },
+    holdBreath: { enabled: profile.holdBreath },
+    autoPing: { mode: profile.autoPing },
     adsSlow: { enabled: profile.adsSlowPercent < 100, percent: profile.adsSlowPercent },
     shotPeriodMs: round(period),
+    effectiveRpm: rpm,
     diagnostics,
     overridden,
     auto,
@@ -2157,12 +2332,14 @@ const LAYOUTS = {
     label: 'Xbox / PC (XB1 layout)',
     fire: 'XB1_RT', ads: 'XB1_LT', rx: 'XB1_RX', ry: 'XB1_RY',
     up: 'XB1_UP', down: 'XB1_DOWN', left: 'XB1_LEFT', right: 'XB1_RIGHT', swap: 'XB1_Y',
+    breath: 'XB1_LS', ping: 'XB1_UP',
     mods: { view: 'XB1_VIEW', menu: 'XB1_MENU', lb: 'XB1_LB', rb: 'XB1_RB', ls: 'XB1_LS', rs: 'XB1_RS' }
   },
   playstation: {
     label: 'PlayStation (PS4/PS5 layout)',
     fire: 'PS4_R2', ads: 'PS4_L2', rx: 'PS4_RX', ry: 'PS4_RY',
     up: 'PS4_UP', down: 'PS4_DOWN', left: 'PS4_LEFT', right: 'PS4_RIGHT', swap: 'PS4_TRIANGLE',
+    breath: 'PS4_L3', ping: 'PS4_UP',
     mods: { view: 'PS4_SHARE', menu: 'PS4_OPTIONS', lb: 'PS4_L1', rb: 'PS4_R1', ls: 'PS4_L3', rs: 'PS4_R3' }
   }
 };
@@ -2205,6 +2382,48 @@ function stickyComboBody(shape) {
     lines.push('    wait(sticky_ms);');
   }
   return lines;
+}
+
+/** Defines for the two button-press mods, shared by both emitters. */
+function extraModDefines(layout, tuning) {
+  const lines = [];
+  lines.push(`define BTN_BREATH  = ${layout.breath};   // steady aim / hold breath`);
+  lines.push(`define BTN_PING    = ${layout.ping};   // ping - same button as D-pad up`);
+  lines.push(`define HOLD_BREATH   = ${gpcBool(tuning.holdBreath?.enabled)};`);
+  lines.push(`define AUTO_PING     = ${gpcBool(tuning.autoPing?.mode === 'ads')};`);
+  lines.push('define PING_HOLD     = 60;      // ms the ping button is held');
+  lines.push('define PING_GAP      = 240;     // ms before another ping can fire');
+  return lines;
+}
+
+/** The main-loop blocks for hold breath and auto ping. */
+function extraModBlocks(tuning) {
+  const lines = [];
+  if (tuning.holdBreath?.enabled) {
+    lines.push('');
+    lines.push('    /* ---- hold breath: the steady-aim button is held while you aim ---- */');
+    lines.push('    /* (same button as sprint, but the game reads it as hold breath while ADS) */');
+    lines.push('    if(mods_on && HOLD_BREATH && aiming) set_val(BTN_BREATH, 100);');
+  }
+  if (tuning.autoPing?.mode === 'ads') {
+    lines.push('');
+    lines.push('    /* ---- auto ping: one tap each time you aim ---- */');
+    lines.push('    /* the device cannot see enemies - this pings wherever you are pointed ---- */');
+    lines.push('    if(mods_on && AUTO_PING && !get_val(BTN_MOD) && event_press(BTN_ADS)) combo_run(PING_TAP);');
+  }
+  return lines;
+}
+
+function pingCombo() {
+  return [
+    'combo PING_TAP {',
+    '    set_val(BTN_PING, 100);',
+    '    wait(PING_HOLD);',
+    '    set_val(BTN_PING, 0);',
+    '    wait(PING_GAP);',
+    '}',
+    ''
+  ];
 }
 
 function stickyCondition(when) {
@@ -2320,6 +2539,17 @@ function buildGpcScript(entries, options = {}) {
   } else {
     head.push(' *   Off for every slot in this script.');
   }
+  if (first.holdBreath?.enabled || first.autoPing?.mode === 'ads') {
+    head.push(' *');
+    head.push(' *  EXTRA MODS');
+    if (first.holdBreath?.enabled) {
+      head.push(` *   Hold breath    : ${layout.breath} is held for you while aiming`);
+    }
+    if (first.autoPing?.mode === 'ads') {
+      head.push(` *   Auto ping      : one ${layout.ping} tap each time you aim - it pings where you`);
+      head.push(' *                    are pointed, because the device cannot see enemies');
+    }
+  }
   head.push(' *');
   head.push(' *  CONTROLS');
   head.push(` *   Hold ${pad(modButton, 12)} + D-PAD RIGHT/LEFT : next / previous weapon slot`);
@@ -2386,6 +2616,7 @@ function buildGpcScript(entries, options = {}) {
   body.push(`define ANTI_DEADZONE  = ${first.antiDeadzone.enabled ? first.antiDeadzone.value : 0};       // 0 = off`);
   body.push(`define ADS_SLOW       = ${first.adsSlow.enabled ? first.adsSlow.percent : 100};     // right stick % while aiming (100 = off)`);
   body.push(`define START_SLOT     = ${Math.min(Math.max(Number(options.startSlot) || 0, 0), slots.length - 1)};`);
+  extraModDefines(layout, first).forEach((line) => body.push(line));
   if (anySticky) {
     body.push(`/* sticky aim: ${first.sticky.shape} shape, active ${STICKY_WHEN_TEXT[first.sticky.when] || 'while aiming'} */`);
   }
@@ -2479,6 +2710,8 @@ function buildGpcScript(entries, options = {}) {
   body.push('        set_val(STICK_RY, (get_val(STICK_RY) * ADS_SLOW) / 100);');
   body.push('    }');
   body.push('');
+  extraModBlocks(first).forEach((line) => body.push(line));
+  body.push('');
   body.push('    /* ---- anti-recoil ---- */');
   body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
   body.push('        fire_ms = fire_ms + get_rtime();');
@@ -2554,6 +2787,7 @@ function buildGpcScript(entries, options = {}) {
     body.push('}');
     body.push('');
   }
+  if (first.autoPing?.mode === 'ads') pingCombo().forEach((line) => body.push(line));
   body.push('/* one rumble pulse per pending blip - slot 3 buzzes three times */');
   body.push('combo FEEDBACK {');
   body.push('    set_rumble(RUMBLE_A, 60);');
@@ -2713,6 +2947,7 @@ function buildUniversalScript(classProfiles, options = {}) {
   body.push(`define ADS_SLOW       = ${first.adsSlow.enabled ? first.adsSlow.percent : 100};`);
   body.push(`define START_PRIMARY  = ${primary};    // ${sanitize(classProfiles[primary].label)}`);
   body.push(`define START_SECOND   = ${secondary};    // ${sanitize(classProfiles[secondary].label)}`);
+  extraModDefines(layout, first).forEach((line) => body.push(line));
   body.push('');
   body.push('/* ---------------- class tables (one block of PHASES per class) ---------------- */');
   classProfiles.forEach((c, i) => body.push(`/*  ${i} = ${sanitize(c.label, 20)} */`));
@@ -2829,6 +3064,8 @@ function buildUniversalScript(classProfiles, options = {}) {
   body.push('        set_val(STICK_RY, (get_val(STICK_RY) * ADS_SLOW) / 100);');
   body.push('    }');
   body.push('');
+  extraModBlocks(first).forEach((line) => body.push(line));
+  body.push('');
   body.push('    /* ---- anti-recoil for the class in your hands ---- */');
   body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
   body.push('        fire_ms = fire_ms + get_rtime();');
@@ -2900,6 +3137,7 @@ function buildUniversalScript(classProfiles, options = {}) {
     body.push('}');
     body.push('');
   }
+  if (first.autoPing?.mode === 'ads') pingCombo().forEach((line) => body.push(line));
   body.push('/* one rumble pulse per pending blip - class 3 buzzes three times */');
   body.push('combo FEEDBACK {');
   body.push('    set_rumble(RUMBLE_A, 60);');
@@ -2955,7 +3193,9 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
     if (!weapons.length) throw new Error('Add at least one weapon first.');
     if (weapons.length > MAX_SLOTS) throw new Error('A script holds at most ' + MAX_SLOTS + ' weapon slots.');
     return weapons.map((raw) => {
-      const weapon = normalizeWeapon(raw, { game: raw.game || p.game });
+      const picked = Array.isArray(raw.attachmentIds) ? resolveAttachments(raw.attachmentIds) : raw.attachments;
+      const weapon = normalizeWeapon({ ...raw, attachments: picked }, { game: raw.game || p.game });
+      weapon.attachmentIds = Array.isArray(raw.attachmentIds) ? raw.attachmentIds : (picked || []).map((a) => a.id).filter(Boolean);
       return { weapon, tuning: computeTuning(weapon, { ...p, game: weapon.game }) };
     });
   };
@@ -2975,6 +3215,7 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
           aimAssist: Object.entries(AIM_ASSIST_SETTINGS).map(([id, a]) => ({ id, label: a.label })),
           customTargets: CUSTOM_TARGETS,
           universalClasses: UNIVERSAL_CLASSES,
+          attachments: attachmentCatalog(),
           overrides: OVERRIDE_SPEC
         },
         maxSlots: MAX_SLOTS,
@@ -3393,6 +3634,27 @@ function renderTune() {
       <label class="field">First-shot delay (ms) <input data-w="firstShotKickMs" type="number" value="${weapon.recoil.firstShotKickMs}" min="0" max="600"></label>
     </div>
 
+    <h3 style="margin-top:18px">Attachments</h3>
+    <p class="hint">One per slot, the way the gunsmith works. The effects are estimates — a compensator taking
+      12% off the vertical kick, a 4x optic putting 20% back on because magnification multiplies what you have
+      to correct. Everything you fit is listed in the script header, even the ones that change nothing.</p>
+    <div class="grid-2">
+      ${state.meta.options.attachments.map((slot) => {
+        const fitted = (weapon.attachmentIds || []).find((id) =>
+          slot.options.some((o) => o.id === id)) || '';
+        return `<label class="field">${escapeHtml(slot.label)}
+          <select data-attach="${slot.id}">
+            <option value="">— none —</option>
+            ${slot.options.map((o) => `<option value="${o.id}"${o.id === fitted ? ' selected' : ''}>${escapeHtml(o.name)}</option>`).join('')}
+          </select>
+        </label>`;
+      }).join('')}
+    </div>
+    ${(weapon.attachments || []).some((a) => a.note)
+      ? `<ul class="diagnostics" style="margin-top:10px">${weapon.attachments.filter((a) => a.note)
+          .map((a) => `<li>${escapeHtml(a.name)}: ${escapeHtml(a.note)}</li>`).join('')}</ul>`
+      : ''}
+
     <h3 style="margin-top:18px">Overrides for this weapon</h3>
     <p class="hint">Leave a box empty to keep the calculated value. Anything you set here wins for this slot only,
       and is marked with a <b>*</b> in the script header.</p>
@@ -3414,6 +3676,7 @@ function renderTune() {
     </div>`;
 
   wireWeaponEditor();
+  wireAttachments();
   wireOverrides();
   wireChart(ar.phases);
 }
@@ -3513,7 +3776,7 @@ function refresh() {
     }
     try {
       const result = await api('/api/generate', {
-        weapons: state.weapons,
+        weapons: state.weapons.map((w) => ({ ...w, attachmentIds: w.attachmentIds || [] })),
         profile: { ...state.profile, game: state.game },
         ...state.scriptOptions
       });
@@ -3916,6 +4179,20 @@ function overrideMode(key, label, tuning, weapon) {
     <select data-ov="${key}">${options.map(([v, text]) =>
       `<option value="${v}"${v === current ? ' selected' : ''}>${escapeHtml(text)}</option>`).join('')}</select>
   </label>`;
+}
+
+function wireAttachments() {
+  $$('#tune-detail [data-attach]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const weapon = state.weapons[state.selected];
+      const slot = el.dataset.attach;
+      const slotIds = new Set((state.meta.options.attachments.find((s) => s.id === slot)?.options || []).map((o) => o.id));
+      // one per slot: drop whatever was in this slot, then add the new pick
+      const kept = (weapon.attachmentIds || []).filter((id) => !slotIds.has(id));
+      weapon.attachmentIds = el.value ? [...kept, el.value] : kept;
+      refresh();
+    });
+  });
 }
 
 function wireOverrides() {

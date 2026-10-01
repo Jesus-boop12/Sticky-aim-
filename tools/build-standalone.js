@@ -17,7 +17,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 /** Dependency order matters: concatenation replaces the module graph. */
-const CORE_MODULES = ['core/games.js', 'core/weapons.js', 'core/catalog.js', 'core/tuning.js', 'core/universal.js', 'core/validate.js', 'core/gpc.js', 'core/coach.js'];
+const CORE_MODULES = ['core/games.js', 'core/weapons.js', 'core/catalog.js', 'core/attachments.js', 'core/tuning.js', 'core/universal.js', 'core/validate.js', 'core/gpc.js', 'core/coach.js'];
 
 /** Flatten one ES module into plain top-level code. */
 function inlineModule(src) {
@@ -26,6 +26,26 @@ function inlineModule(src) {
     .replace(/^export\s+(const|function|class|let|var)\b/gm, '$1')
     .replace(/^export\s*\{[^}]*\};?\s*$/gm, '')
     .trim();
+}
+
+/**
+ * Concatenation gives every module one shared scope, so two files declaring the
+ * same top-level name silently shadow each other - or throw at load. Catch it
+ * here, where the message can name both files.
+ */
+function assertNoCollisions(modules) {
+  const seen = new Map();
+  const collisions = [];
+  for (const [file, src] of modules) {
+    const names = [...src.matchAll(/^(?:const|let|var|function|class)\s+(\w+)/gm)].map((m) => m[1]);
+    for (const name of new Set(names)) {
+      if (seen.has(name)) collisions.push(`${name} is declared in both ${seen.get(name)} and ${file}`);
+      else seen.set(name, file);
+    }
+  }
+  if (collisions.length) {
+    throw new Error(`Cannot bundle - these top-level names clash:\n  ${collisions.join('\n  ')}`);
+  }
 }
 
 export function buildStandalone() {
@@ -37,7 +57,9 @@ export function buildStandalone() {
     .replace(/<script[\s\S]*?<\/script>/g, '')
     .trim();
 
-  const core = CORE_MODULES.map((file) => `/* ---- ${file} ---- */\n${inlineModule(read(file))}`).join('\n\n');
+  const modules = CORE_MODULES.map((file) => [file, inlineModule(read(file))]);
+  assertNoCollisions(modules);
+  const core = modules.map(([file, src]) => `/* ---- ${file} ---- */\n${src}`).join('\n\n');
 
   // The served app asks a Node server these questions; here they are answered in-page.
   const transport = `
@@ -49,7 +71,9 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
     if (!weapons.length) throw new Error('Add at least one weapon first.');
     if (weapons.length > MAX_SLOTS) throw new Error('A script holds at most ' + MAX_SLOTS + ' weapon slots.');
     return weapons.map((raw) => {
-      const weapon = normalizeWeapon(raw, { game: raw.game || p.game });
+      const picked = Array.isArray(raw.attachmentIds) ? resolveAttachments(raw.attachmentIds) : raw.attachments;
+      const weapon = normalizeWeapon({ ...raw, attachments: picked }, { game: raw.game || p.game });
+      weapon.attachmentIds = Array.isArray(raw.attachmentIds) ? raw.attachmentIds : (picked || []).map((a) => a.id).filter(Boolean);
       return { weapon, tuning: computeTuning(weapon, { ...p, game: weapon.game }) };
     });
   };
@@ -69,6 +93,7 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
           aimAssist: Object.entries(AIM_ASSIST_SETTINGS).map(([id, a]) => ({ id, label: a.label })),
           customTargets: CUSTOM_TARGETS,
           universalClasses: UNIVERSAL_CLASSES,
+          attachments: attachmentCatalog(),
           overrides: OVERRIDE_SPEC
         },
         maxSlots: MAX_SLOTS,

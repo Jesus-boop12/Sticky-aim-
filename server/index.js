@@ -19,6 +19,7 @@ import { computeTuning, normalizeProfile, DEFAULT_PROFILE, RAMP_SPEEDS, STICKY_S
 import { buildGpcScript, buildUniversalScript, scriptFileName, listLayouts, MAX_SLOTS } from '../core/gpc.js';
 import { buildClassProfiles, UNIVERSAL_CLASSES } from '../core/universal.js';
 import { validateGpc } from '../core/validate.js';
+import { attachmentCatalog, resolveAttachments } from '../core/attachments.js';
 import { aiEnabled, extractWeaponsFromText, extractWeaponsFromImage, coach, MODEL } from './ai.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -64,7 +65,9 @@ function prepareEntries(body) {
   if (!rawWeapons.length) throw new Error('Add at least one weapon first.');
   if (rawWeapons.length > MAX_SLOTS) throw new Error(`A script holds at most ${MAX_SLOTS} weapon slots.`);
   return rawWeapons.map((raw) => {
-    const weapon = normalizeWeapon(raw, { game: raw.game || profile.game });
+    const picked = Array.isArray(raw.attachmentIds) ? resolveAttachments(raw.attachmentIds) : raw.attachments;
+    const weapon = normalizeWeapon({ ...raw, attachments: picked }, { game: raw.game || profile.game });
+    weapon.attachmentIds = Array.isArray(raw.attachmentIds) ? raw.attachmentIds : (picked || []).map((a) => a.id).filter(Boolean);
     return { weapon, tuning: computeTuning(weapon, { ...profile, game: weapon.game }) };
   });
 }
@@ -83,6 +86,7 @@ const ROUTES = {
       aimAssist: Object.entries(AIM_ASSIST_SETTINGS).map(([id, a]) => ({ id, label: a.label })),
       customTargets: CUSTOM_TARGETS,
       universalClasses: UNIVERSAL_CLASSES,
+      attachments: attachmentCatalog(),
       overrides: OVERRIDE_SPEC
     },
     maxSlots: MAX_SLOTS,

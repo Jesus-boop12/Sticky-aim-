@@ -54,3 +54,13 @@ test('the page markup and its controls survive', () => {
     assert.ok(html.includes(id), `${id} is missing from the standalone page`);
   }
 });
+
+test('the bundler refuses two modules that declare the same name', () => {
+  // concatenation shares one scope; this guard is what stopped `BY_ID` from
+  // being declared by both games.js and attachments.js
+  const html = buildStandalone();
+  const script = html.slice(html.indexOf('<script type="module">'), html.lastIndexOf('</script>'));
+  const declarations = [...script.matchAll(/^(?:const|let|var|function|class)\s+(\w+)/gm)].map((m) => m[1]);
+  const duplicates = declarations.filter((n, i) => declarations.indexOf(n) !== i);
+  assert.deepEqual([...new Set(duplicates)], [], 'a duplicate top-level name would shadow or throw');
+});

@@ -362,6 +362,27 @@ function renderTune() {
       <label class="field">First-shot delay (ms) <input data-w="firstShotKickMs" type="number" value="${weapon.recoil.firstShotKickMs}" min="0" max="600"></label>
     </div>
 
+    <h3 style="margin-top:18px">Attachments</h3>
+    <p class="hint">One per slot, the way the gunsmith works. The effects are estimates — a compensator taking
+      12% off the vertical kick, a 4x optic putting 20% back on because magnification multiplies what you have
+      to correct. Everything you fit is listed in the script header, even the ones that change nothing.</p>
+    <div class="grid-2">
+      ${state.meta.options.attachments.map((slot) => {
+        const fitted = (weapon.attachmentIds || []).find((id) =>
+          slot.options.some((o) => o.id === id)) || '';
+        return `<label class="field">${escapeHtml(slot.label)}
+          <select data-attach="${slot.id}">
+            <option value="">— none —</option>
+            ${slot.options.map((o) => `<option value="${o.id}"${o.id === fitted ? ' selected' : ''}>${escapeHtml(o.name)}</option>`).join('')}
+          </select>
+        </label>`;
+      }).join('')}
+    </div>
+    ${(weapon.attachments || []).some((a) => a.note)
+      ? `<ul class="diagnostics" style="margin-top:10px">${weapon.attachments.filter((a) => a.note)
+          .map((a) => `<li>${escapeHtml(a.name)}: ${escapeHtml(a.note)}</li>`).join('')}</ul>`
+      : ''}
+
     <h3 style="margin-top:18px">Overrides for this weapon</h3>
     <p class="hint">Leave a box empty to keep the calculated value. Anything you set here wins for this slot only,
       and is marked with a <b>*</b> in the script header.</p>
@@ -383,6 +404,7 @@ function renderTune() {
     </div>`;
 
   wireWeaponEditor();
+  wireAttachments();
   wireOverrides();
   wireChart(ar.phases);
 }
@@ -482,7 +504,7 @@ function refresh() {
     }
     try {
       const result = await api('/api/generate', {
-        weapons: state.weapons,
+        weapons: state.weapons.map((w) => ({ ...w, attachmentIds: w.attachmentIds || [] })),
         profile: { ...state.profile, game: state.game },
         ...state.scriptOptions
       });
@@ -885,6 +907,20 @@ function overrideMode(key, label, tuning, weapon) {
     <select data-ov="${key}">${options.map(([v, text]) =>
       `<option value="${v}"${v === current ? ' selected' : ''}>${escapeHtml(text)}</option>`).join('')}</select>
   </label>`;
+}
+
+function wireAttachments() {
+  $$('#tune-detail [data-attach]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const weapon = state.weapons[state.selected];
+      const slot = el.dataset.attach;
+      const slotIds = new Set((state.meta.options.attachments.find((s) => s.id === slot)?.options || []).map((o) => o.id));
+      // one per slot: drop whatever was in this slot, then add the new pick
+      const kept = (weapon.attachmentIds || []).filter((id) => !slotIds.has(id));
+      weapon.attachmentIds = el.value ? [...kept, el.value] : kept;
+      refresh();
+    });
+  });
 }
 
 function wireOverrides() {

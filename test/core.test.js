@@ -6,6 +6,7 @@ import { computeTuning, normalizeProfile, normalizeCustomSettings, PHASE_COUNT }
 import { buildGpcScript, buildUniversalScript, scriptFileName, MAX_SLOTS } from '../core/gpc.js';
 import { buildClassProfiles } from '../core/universal.js';
 import { validateGpc } from '../core/validate.js';
+import { resolveAttachments } from '../core/attachments.js';
 import { catalogFor } from '../core/catalog.js';
 import { getGame, listGames } from '../core/games.js';
 
@@ -734,4 +735,80 @@ test('an emitter refuses to hand back a broken script', () => {
   // the gate is real: prove it by validating the gate itself
   assert.doesNotThrow(() => generate('cod-mw3', 2));
   assert.equal(validateGpc(generate('cod-mw3', 2).gpc).ok, true);
+});
+
+/* ---------------- attachments, hold breath, auto ping ---------------- */
+
+test('attachments change the pull in the direction they claim', () => {
+  const base = catalogFor('warzone').find((w) => w.name === 'MCW');
+  const bare = computeTuning(base, {}).antiRecoil.vertical;
+
+  const fit = (ids) => computeTuning(
+    normalizeWeapon({ ...base, attachments: resolveAttachments(ids) }, { game: 'warzone' }), {}
+  ).antiRecoil.vertical;
+
+  assert.ok(fit(['compensator']) < bare, 'a compensator should need less correction');
+  assert.ok(fit(['scope-8x']) > bare, 'magnification should need more');
+  assert.ok(fit(['no-stock']) > fit(['heavy-stock']), 'a heavy stock steadies more than none');
+  assert.equal(fit(['flash-hider']), bare, 'a cosmetic attachment must not move the numbers');
+});
+
+test('only one attachment per slot survives', () => {
+  const fitted = resolveAttachments(['compensator', 'muzzle-brake', 'suppressor', 'heavy-stock']);
+  assert.equal(fitted.filter((a) => a.slot === 'muzzle').length, 1);
+  assert.equal(fitted.find((a) => a.slot === 'muzzle').id, 'suppressor', 'the last pick wins');
+  assert.equal(fitted.length, 2);
+  assert.deepEqual(resolveAttachments(['nonsense', null, 42]), [], 'unknown ids are dropped, not guessed');
+});
+
+test('an attachment that changes the fire rate changes the cadence', () => {
+  const base = normalizeWeapon({ name: 'Semi', category: 'marksman', fireMode: 'semi', rpm: 300, vertical: 30 }, { game: 'warzone' });
+  const faster = normalizeWeapon({
+    ...base, attachments: [{ name: 'Match trigger', rpm: 0.2, recoilVertical: 0, recoilHorizontal: 0, adsTime: 0 }]
+  }, { game: 'warzone' });
+  assert.equal(computeTuning(base, {}).effectiveRpm, 300);
+  assert.equal(computeTuning(faster, {}).effectiveRpm, 360, 'the fire-rate modifier was being stored and ignored');
+  assert.match(computeTuning(faster, {}).diagnostics.join(' '), /Fire rate with attachments: 300 -> 360 RPM/);
+});
+
+test('attachments are listed in the script header, effect or not', () => {
+  const base = catalogFor('warzone').find((w) => w.name === 'MCW');
+  const weapon = normalizeWeapon({ ...base, attachments: resolveAttachments(['compensator', 'bipod']) }, { game: 'warzone' });
+  const header = buildGpcScript([{ weapon, tuning: computeTuning(weapon, {}) }])
+    .split('/* ---------------- controller layout')[0].replace(/^\s*\*\s*/gm, ' ').replace(/\s+/g, ' ');
+  assert.match(header, /Compensator \(-12% vertical/);
+  assert.match(header, /Also fitted, with no effect on the pull: Bipod/);
+});
+
+test('hold breath holds the steady-aim button only while aiming', () => {
+  const w = catalogFor('warzone').find((x) => x.name === 'KATT-AMR') || catalogFor('warzone')[0];
+  const on = buildGpcScript([{ weapon: w, tuning: computeTuning(w, { holdBreath: true }) }]);
+  assert.match(on, /define BTN_BREATH  = XB1_LS;/);
+  assert.match(on, /if\(mods_on && HOLD_BREATH && aiming\) set_val\(BTN_BREATH, 100\);/);
+
+  const off = buildGpcScript([{ weapon: w, tuning: computeTuning(w, { holdBreath: false }) }]);
+  assert.ok(!off.includes('BTN_BREATH, 100'), 'the block must not be emitted when the mod is off');
+  assert.match(off, /define HOLD_BREATH   = FALSE;/);
+});
+
+test('auto ping taps once per aim and says it is blind', () => {
+  const w = catalogFor('warzone')[0];
+  const tuning = computeTuning(w, { autoPing: 'ads' });
+  const gpc = buildGpcScript([{ weapon: w, tuning }]);
+
+  assert.match(gpc, /if\(mods_on && AUTO_PING && !get_val\(BTN_MOD\) && event_press\(BTN_ADS\)\) combo_run\(PING_TAP\);/);
+  assert.match(gpc, /combo PING_TAP \{/);
+  assert.match(tuning.diagnostics.join(' '), /cannot see enemies/);
+
+  const header = gpc.split('/* ---------------- controller layout')[0].replace(/^\s*\*\s*/gm, ' ').replace(/\s+/g, ' ');
+  assert.match(header, /it pings where you are pointed, because the device cannot see enemies/);
+  assert.equal(validateGpc(gpc).ok, true);
+});
+
+test('the new mods reach the universal script too', () => {
+  const profiles = buildClassProfiles('warzone', { sensitivity: 6, holdBreath: true, autoPing: 'ads' });
+  const gpc = buildUniversalScript(profiles, { game: 'warzone' });
+  assert.match(gpc, /HOLD_BREATH && aiming/);
+  assert.match(gpc, /combo_run\(PING_TAP\)/);
+  assert.equal(validateGpc(gpc).ok, true);
 });

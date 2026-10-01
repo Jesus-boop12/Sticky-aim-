@@ -28,12 +28,14 @@ const LAYOUTS = {
     label: 'Xbox / PC (XB1 layout)',
     fire: 'XB1_RT', ads: 'XB1_LT', rx: 'XB1_RX', ry: 'XB1_RY',
     up: 'XB1_UP', down: 'XB1_DOWN', left: 'XB1_LEFT', right: 'XB1_RIGHT', swap: 'XB1_Y',
+    breath: 'XB1_LS', ping: 'XB1_UP',
     mods: { view: 'XB1_VIEW', menu: 'XB1_MENU', lb: 'XB1_LB', rb: 'XB1_RB', ls: 'XB1_LS', rs: 'XB1_RS' }
   },
   playstation: {
     label: 'PlayStation (PS4/PS5 layout)',
     fire: 'PS4_R2', ads: 'PS4_L2', rx: 'PS4_RX', ry: 'PS4_RY',
     up: 'PS4_UP', down: 'PS4_DOWN', left: 'PS4_LEFT', right: 'PS4_RIGHT', swap: 'PS4_TRIANGLE',
+    breath: 'PS4_L3', ping: 'PS4_UP',
     mods: { view: 'PS4_SHARE', menu: 'PS4_OPTIONS', lb: 'PS4_L1', rb: 'PS4_R1', ls: 'PS4_L3', rs: 'PS4_R3' }
   }
 };
@@ -76,6 +78,48 @@ function stickyComboBody(shape) {
     lines.push('    wait(sticky_ms);');
   }
   return lines;
+}
+
+/** Defines for the two button-press mods, shared by both emitters. */
+function extraModDefines(layout, tuning) {
+  const lines = [];
+  lines.push(`define BTN_BREATH  = ${layout.breath};   // steady aim / hold breath`);
+  lines.push(`define BTN_PING    = ${layout.ping};   // ping - same button as D-pad up`);
+  lines.push(`define HOLD_BREATH   = ${gpcBool(tuning.holdBreath?.enabled)};`);
+  lines.push(`define AUTO_PING     = ${gpcBool(tuning.autoPing?.mode === 'ads')};`);
+  lines.push('define PING_HOLD     = 60;      // ms the ping button is held');
+  lines.push('define PING_GAP      = 240;     // ms before another ping can fire');
+  return lines;
+}
+
+/** The main-loop blocks for hold breath and auto ping. */
+function extraModBlocks(tuning) {
+  const lines = [];
+  if (tuning.holdBreath?.enabled) {
+    lines.push('');
+    lines.push('    /* ---- hold breath: the steady-aim button is held while you aim ---- */');
+    lines.push('    /* (same button as sprint, but the game reads it as hold breath while ADS) */');
+    lines.push('    if(mods_on && HOLD_BREATH && aiming) set_val(BTN_BREATH, 100);');
+  }
+  if (tuning.autoPing?.mode === 'ads') {
+    lines.push('');
+    lines.push('    /* ---- auto ping: one tap each time you aim ---- */');
+    lines.push('    /* the device cannot see enemies - this pings wherever you are pointed ---- */');
+    lines.push('    if(mods_on && AUTO_PING && !get_val(BTN_MOD) && event_press(BTN_ADS)) combo_run(PING_TAP);');
+  }
+  return lines;
+}
+
+function pingCombo() {
+  return [
+    'combo PING_TAP {',
+    '    set_val(BTN_PING, 100);',
+    '    wait(PING_HOLD);',
+    '    set_val(BTN_PING, 0);',
+    '    wait(PING_GAP);',
+    '}',
+    ''
+  ];
 }
 
 function stickyCondition(when) {
@@ -191,6 +235,17 @@ export function buildGpcScript(entries, options = {}) {
   } else {
     head.push(' *   Off for every slot in this script.');
   }
+  if (first.holdBreath?.enabled || first.autoPing?.mode === 'ads') {
+    head.push(' *');
+    head.push(' *  EXTRA MODS');
+    if (first.holdBreath?.enabled) {
+      head.push(` *   Hold breath    : ${layout.breath} is held for you while aiming`);
+    }
+    if (first.autoPing?.mode === 'ads') {
+      head.push(` *   Auto ping      : one ${layout.ping} tap each time you aim - it pings where you`);
+      head.push(' *                    are pointed, because the device cannot see enemies');
+    }
+  }
   head.push(' *');
   head.push(' *  CONTROLS');
   head.push(` *   Hold ${pad(modButton, 12)} + D-PAD RIGHT/LEFT : next / previous weapon slot`);
@@ -257,6 +312,7 @@ export function buildGpcScript(entries, options = {}) {
   body.push(`define ANTI_DEADZONE  = ${first.antiDeadzone.enabled ? first.antiDeadzone.value : 0};       // 0 = off`);
   body.push(`define ADS_SLOW       = ${first.adsSlow.enabled ? first.adsSlow.percent : 100};     // right stick % while aiming (100 = off)`);
   body.push(`define START_SLOT     = ${Math.min(Math.max(Number(options.startSlot) || 0, 0), slots.length - 1)};`);
+  extraModDefines(layout, first).forEach((line) => body.push(line));
   if (anySticky) {
     body.push(`/* sticky aim: ${first.sticky.shape} shape, active ${STICKY_WHEN_TEXT[first.sticky.when] || 'while aiming'} */`);
   }
@@ -350,6 +406,8 @@ export function buildGpcScript(entries, options = {}) {
   body.push('        set_val(STICK_RY, (get_val(STICK_RY) * ADS_SLOW) / 100);');
   body.push('    }');
   body.push('');
+  extraModBlocks(first).forEach((line) => body.push(line));
+  body.push('');
   body.push('    /* ---- anti-recoil ---- */');
   body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
   body.push('        fire_ms = fire_ms + get_rtime();');
@@ -425,6 +483,7 @@ export function buildGpcScript(entries, options = {}) {
     body.push('}');
     body.push('');
   }
+  if (first.autoPing?.mode === 'ads') pingCombo().forEach((line) => body.push(line));
   body.push('/* one rumble pulse per pending blip - slot 3 buzzes three times */');
   body.push('combo FEEDBACK {');
   body.push('    set_rumble(RUMBLE_A, 60);');
@@ -585,6 +644,7 @@ export function buildUniversalScript(classProfiles, options = {}) {
   body.push(`define ADS_SLOW       = ${first.adsSlow.enabled ? first.adsSlow.percent : 100};`);
   body.push(`define START_PRIMARY  = ${primary};    // ${sanitize(classProfiles[primary].label)}`);
   body.push(`define START_SECOND   = ${secondary};    // ${sanitize(classProfiles[secondary].label)}`);
+  extraModDefines(layout, first).forEach((line) => body.push(line));
   body.push('');
   body.push('/* ---------------- class tables (one block of PHASES per class) ---------------- */');
   classProfiles.forEach((c, i) => body.push(`/*  ${i} = ${sanitize(c.label, 20)} */`));
@@ -701,6 +761,8 @@ export function buildUniversalScript(classProfiles, options = {}) {
   body.push('        set_val(STICK_RY, (get_val(STICK_RY) * ADS_SLOW) / 100);');
   body.push('    }');
   body.push('');
+  extraModBlocks(first).forEach((line) => body.push(line));
+  body.push('');
   body.push('    /* ---- anti-recoil for the class in your hands ---- */');
   body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
   body.push('        fire_ms = fire_ms + get_rtime();');
@@ -772,6 +834,7 @@ export function buildUniversalScript(classProfiles, options = {}) {
     body.push('}');
     body.push('');
   }
+  if (first.autoPing?.mode === 'ads') pingCombo().forEach((line) => body.push(line));
   body.push('/* one rumble pulse per pending blip - class 3 buzzes three times */');
   body.push('combo FEEDBACK {');
   body.push('    set_rumble(RUMBLE_A, 60);');

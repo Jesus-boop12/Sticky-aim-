@@ -45,6 +45,15 @@ is listed as a warning on the weapon.
 number in the script is recomputed live, with a chart of the correction curve,
 the phase table and a plain-English derivation for each value.
 
+*Attachments* — one per slot, the way a gunsmith works: muzzle, barrel, optic,
+underbarrel, stock, rear grip, magazine, laser. Effects are estimates in the
+direction a player would expect — a compensator takes 12% off the vertical kick,
+a heavy stock another 10%, an 8x optic puts 35% back on because magnification
+multiplies what you have to correct. Attachments that only change handling
+(a bipod, a flash hider) are recorded with no effect and say why. Everything you
+fit is listed in the script header, so a tune built behind a 4x is never
+mistaken for one built behind a red dot.
+
 *Your settings* — the ones out of the game's options menu that change the maths:
 controller, look sensitivity, ADS sensitivity multiplier, response curve, right
 stick deadzone, a separate vertical stick multiplier, field of view, and what
@@ -75,6 +84,16 @@ starting point.
 
 *Saved setups* — name and store everything above in the browser, one per game or
 per playstyle, and load it back later.
+
+*Other mods*
+
+| Mod | What it does |
+|---|---|
+| Hair triggers | Kills the dead travel on the analog triggers |
+| Anti-deadzone | Small stick inputs actually move the camera |
+| Aim slowdown | Right stick runs at a set % while aiming |
+| **Hold breath** | Holds the steady-aim button (L3 / L3) for you the whole time you are aiming |
+| **Auto ping** | One ping each time you aim. The device cannot see enemies — it pings wherever you happen to be pointed, which the script header says out loud |
 
 *Recoil control*
 
