@@ -7,10 +7,16 @@ const html = buildStandalone();
 const script = html.slice(html.indexOf('<script type="module">') + '<script type="module">'.length, html.lastIndexOf('</script>'));
 
 test('the standalone build is a single self-contained page', () => {
-  assert.match(html, /^<title>Sticky Aim Weapon Studio<\/title>/);
+  assert.match(html, /^<title>Zen Strike<\/title>/);
   // careful: <header> starts with "<head"
   assert.ok(!/<(html|head|body)[\s>]/i.test(html), 'the artifact skeleton supplies those tags');
-  assert.ok(!html.includes('<link rel="stylesheet"'), 'the CSS must be inlined');
+  // the page's own CSS must be inlined; Google Fonts is the one stylesheet host
+  // the artifact CSP allows, so a link there is legitimate
+  const sheets = [...html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
+  for (const href of sheets) {
+    assert.match(href, /^https:\/\/fonts\.googleapis\.com\//, `stylesheet from a blocked host: ${href}`);
+  }
+  assert.ok(!html.includes('href="/styles.css"'), "the app's own CSS must be inlined");
   assert.equal(html.match(/<script/g).length, 1, 'exactly one script block');
 });
 
@@ -63,4 +69,11 @@ test('the bundler refuses two modules that declare the same name', () => {
   const declarations = [...script.matchAll(/^(?:const|let|var|function|class)\s+(\w+)/gm)].map((m) => m[1]);
   const duplicates = declarations.filter((n, i) => declarations.indexOf(n) !== i);
   assert.deepEqual([...new Set(duplicates)], [], 'a duplicate top-level name would shadow or throw');
+});
+
+test('the standalone build carries the logo and the brand', () => {
+  assert.match(html, /^<title>Zen Strike<\/title>/);
+  assert.match(html, /src="data:image\/png;base64,/, 'the logo must be inlined - external images are blocked');
+  assert.ok(!html.includes('src="/assets/'), 'no external asset path may survive the bundle');
+  assert.match(html, /fonts\.googleapis\.com/, 'the display face is loaded from the one allowed font host');
 });

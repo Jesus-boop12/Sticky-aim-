@@ -1,5 +1,5 @@
 /**
- * Build a single self-contained HTML file.
+ * Build a single self-contained Zen Strike page.
  *
  * The result runs the whole studio - catalog, importers, tuner, GPC emitter -
  * in the browser with no server and no network, so it can be opened from a
@@ -191,14 +191,21 @@ html, body { background: var(--surface-0); }
   };
 })();`;
 
-  return `<title>Sticky Aim Weapon Studio</title>
+  // The artifact CSP blocks external images, so the logo rides along as a data URI.
+  const logo = 'data:image/png;base64,' + fs.readFileSync(path.join(ROOT, 'web/assets/zen-strike-logo.png')).toString('base64');
+  const bodyWithLogo = body.replace('src="/assets/zen-strike-logo.png"', `src="${logo}"`);
+
+  return `<title>Zen Strike</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:ital,wght@1,600;1,700;1,800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 ${css}
 ${standaloneCss}
 </style>
 
 ${note}
-${body}
+${bodyWithLogo}
 
 <script type="module">
 ${core}
@@ -212,7 +219,7 @@ ${saveGlue}
 `;
 }
 
-const outfile = process.argv[2] || 'dist/sticky-aim-studio.html';
+const outfile = process.argv[2] || 'dist/zen-strike.html';
 const target = path.isAbsolute(outfile) ? outfile : path.join(ROOT, outfile);
 fs.mkdirSync(path.dirname(target), { recursive: true });
 fs.writeFileSync(target, buildStandalone());

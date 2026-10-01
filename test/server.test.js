@@ -35,7 +35,7 @@ test('the page itself is served', async () => {
   await withServer(async (base) => {
     const res = await fetch(base + '/');
     assert.equal(res.status, 200);
-    assert.match(await res.text(), /Sticky Aim Weapon Studio/);
+    assert.match(await res.text(), /Zen Strike/);
     assert.equal((await fetch(base + '/styles.css')).status, 200);
     assert.equal((await fetch(base + '/app.js')).status, 200);
   });

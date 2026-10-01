@@ -1,4 +1,4 @@
-/* Sticky Aim Weapon Studio - front end.
+/* Zen Strike - front end.
    State lives here; all maths happen server-side in core/ so the CLI, the tests
    and the page can never disagree about what a weapon tunes to. */
 

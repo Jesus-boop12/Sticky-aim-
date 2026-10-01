@@ -171,7 +171,7 @@ export function buildGpcScript(entries, options = {}) {
   const modButton = layout.mods[modKey];
   const game = getGame(slots[0].weapon.game);
   const title = sanitize(options.title || `${game.name} - ${slots.map((s) => s.weapon.name).join(' / ')}`, 58);
-  const author = sanitize(options.author || 'Sticky Aim Studio', 30);
+  const author = sanitize(options.author || 'Zen Strike', 30);
   const generated = options.now || new Date().toISOString().replace('T', ' ').slice(0, 16);
 
   const anyRapid = slots.some((s) => s.tuning.rapidFire.enabled);
@@ -186,7 +186,7 @@ export function buildGpcScript(entries, options = {}) {
   head.push(` *  Game        : ${sanitize(game.name)}`);
   head.push(` *  Controller  : ${layout.label}`);
   head.push(` *  Author      : ${author}`);
-  head.push(` *  Generated   : ${generated} by Sticky Aim Weapon Studio`);
+  head.push(` *  Generated   : ${generated} by Zen Strike`);
   head.push(` *  Settings    : sens ${first.profile.sensitivity}, ADS x${first.profile.adsMultiplier}, ` +
             `${first.profile.responseCurve} curve, deadzone ${first.profile.deadzone}, trim ${first.profile.strength}%`);
   const extra = [];
@@ -534,7 +534,7 @@ export function buildUniversalScript(classProfiles, options = {}) {
   const modButton = layout.mods[modKey];
   const game = getGame(options.game || first.game);
   const title = sanitize(options.title || `${game.name} - universal`, 58);
-  const author = sanitize(options.author || 'Sticky Aim Studio', 30);
+  const author = sanitize(options.author || 'Zen Strike', 30);
   const generated = options.now || new Date().toISOString().replace('T', ' ').slice(0, 16);
 
   const index = (id) => Math.max(classProfiles.findIndex((c) => c.id === id), 0);
@@ -552,7 +552,7 @@ export function buildUniversalScript(classProfiles, options = {}) {
   head.push(` *  Game        : ${sanitize(game.name)}`);
   head.push(` *  Controller  : ${layout.label}`);
   head.push(` *  Author      : ${author}`);
-  head.push(` *  Generated   : ${generated} by Sticky Aim Weapon Studio`);
+  head.push(` *  Generated   : ${generated} by Zen Strike`);
   head.push(` *  Settings    : sens ${first.profile.sensitivity}, ADS x${first.profile.adsMultiplier}, ` +
             `${first.profile.responseCurve} curve, deadzone ${first.profile.deadzone}, trim ${first.profile.strength}%`);
   head.push(' *');

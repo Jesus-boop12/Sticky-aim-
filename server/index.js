@@ -1,5 +1,5 @@
 /**
- * Sticky Aim Weapon Studio - local server.
+ * Zen Strike - local server.
  *
  * Deliberately dependency-free apart from the Anthropic SDK: `npm start` and
  * open the page. Nothing is uploaded anywhere except the AI import/coach calls,
@@ -232,7 +232,7 @@ function start() {
   });
 
   server.listen(PORT, () => {
-    console.log(`\n  Sticky Aim Weapon Studio  ->  http://localhost:${PORT}`);
+    console.log(`\n  Zen Strike  ->  http://localhost:${PORT}`);
     console.log(`  AI features: ${aiEnabled() ? `on (${MODEL})` : 'off (set ANTHROPIC_API_KEY to enable)'}`);
     console.log('  Open that address in a browser. Ctrl+C here stops it.\n');
   });

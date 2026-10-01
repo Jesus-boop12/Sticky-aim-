@@ -1,4 +1,4 @@
-# Sticky Aim Weapon Studio
+# Zen Strike
 
 Import a weapon from any game — preset, screenshot, JSON, CSV or a sentence you
 typed — and get a tuned Cronus **GPC** script written for that specific weapon:
@@ -14,7 +14,7 @@ npm start          # http://localhost:5173
 ```
 
 **No Node, or on a phone?** `npm run build:standalone` writes
-`dist/sticky-aim-studio.html` — one self-contained file that runs the catalog,
+`dist/zen-strike.html` — one self-contained file that runs the catalog,
 importers, tuner and GPC emitter entirely in the browser, with no server and no
 network. Open it from anywhere, or publish it. The AI importers are the only
 thing it leaves behind; they need an API key, which means they need the server.
@@ -277,6 +277,7 @@ server/
   index.js      dependency-free HTTP server + JSON API
   ai.js         Claude integration (text import, screenshot import, review)
 web/          the page (vanilla ES modules, no build step)
+  assets/       the Zen Strike wordmark, inlined by the standalone build
 tools/
   build-standalone.js   inlines core/ + web/ into one offline HTML file
 test/         node:test suites for the core, the API and the bundle
@@ -288,7 +289,7 @@ tests can never disagree about what a weapon tunes to.
 ```bash
 npm test                  # 65 tests: importers, tuning bounds, in-game settings,
                           # options, overrides, GPC structure, API, bundle
-npm run build:standalone  # dist/sticky-aim-studio.html - no server needed
+npm run build:standalone  # dist/zen-strike.html - no server needed
 ```
 
 ### API
@@ -313,6 +314,13 @@ Requests to Anthropic only happen when you press an AI button. Everything else
 — importing, tuning, generating — stays on your machine.
 
 ---
+
+## Brand
+
+Zen Strike: chromed steel on black, cut by the red out of the wordmark
+(`#ed1c24`). Saira Condensed italic for display, Barlow for body, JetBrains
+Mono for script. The red is reserved for the brand and for actions — never for
+a data series, which is why the recoil chart stays on blue and amber.
 
 ## Fair play
 
