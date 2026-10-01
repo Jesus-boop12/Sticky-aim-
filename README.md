@@ -26,6 +26,16 @@ Nothing else to configure. An `ANTHROPIC_API_KEY` unlocks the AI importers
 
 ## What it does
 
+**Build it for me** — describe your setup in your own words: your settings, your
+guns, your attachments, and what you want the script to do. Claude fills in
+every tab — game, sensitivity, weapons with attachments, which mods are on — and
+writes the script, then tells you what it assumed. Everything stays editable
+afterwards. Needs an API key; without one the tabs below do the same job by hand.
+
+**Mods menu** — one place to switch everything on and off: anti-recoil, sticky
+aim, hair triggers, anti-deadzone, hold breath, auto ping, rapid fire, aim
+slowdown. How much each one is worth is set in the sections underneath.
+
 **1 · Import** a weapon, any of six ways:
 
 | Source | Needs a key | Notes |
@@ -300,6 +310,8 @@ npm run build:standalone  # dist/zen-strike.html - no server needed
 | `POST /api/import` | `{kind, payload, game}` — kind: `json` \| `csv` \| `text` \| `image` \| `manual` | `{weapons, mode, notes}` |
 | `POST /api/tune` | `{weapons, profile}` | `{entries}` (weapon + tuning, including `auto` and `overridden`) |
 | `POST /api/generate` | `{weapons, profile, title, modButton, startSlot}` | `{gpc, fileName, entries}` |
+| `POST /api/build` | `{description, game}` | `{game, profile, weapons, universal, explanation, assumptions, unmatched}` — needs a key |
+| `POST /api/check` | `{script}` | `{ok, problems}` — structural check on a pasted script |
 | `POST /api/coach` | `{weapons, profile, question}` | `{text, mode}` |
 
 ### Configuration

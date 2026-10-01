@@ -136,6 +136,9 @@ window.stickyAimApi = async function stickyAimApi(path, body) {
       return { gpc: buildGpcScript(list, options), fileName: scriptFileName(list, options), entries: list };
     }
 
+    case '/api/build':
+      throw new Error('Building from a description needs the local app and an API key. Use the tabs here instead.');
+
     case '/api/check':
       if (!String(body.script || '').trim()) throw new Error('Paste a script to check.');
       return validateGpc(body.script);

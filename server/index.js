@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { listGames, CATEGORIES } from '../core/games.js';
-import { fullCatalog } from '../core/catalog.js';
+import { fullCatalog, catalogFor } from '../core/catalog.js';
 import { importFromCsv, importFromJson, normalizeWeapon, OVERRIDE_SPEC } from '../core/weapons.js';
 import { computeTuning, normalizeProfile, DEFAULT_PROFILE, RAMP_SPEEDS, STICKY_SHAPES, STICKY_WHEN,
          AIM_ASSIST_SETTINGS, CUSTOM_TARGETS } from '../core/tuning.js';
@@ -20,7 +20,7 @@ import { buildGpcScript, buildUniversalScript, scriptFileName, listLayouts, MAX_
 import { buildClassProfiles, UNIVERSAL_CLASSES } from '../core/universal.js';
 import { validateGpc } from '../core/validate.js';
 import { attachmentCatalog, resolveAttachments } from '../core/attachments.js';
-import { aiEnabled, extractWeaponsFromText, extractWeaponsFromImage, coach, MODEL } from './ai.js';
+import { aiEnabled, extractWeaponsFromText, extractWeaponsFromImage, buildFromDescription, coach, MODEL } from './ai.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = path.join(HERE, '..', 'web');
@@ -153,6 +153,26 @@ const ROUTES = {
     };
   },
 
+  'POST /api/build': async (body) => {
+    const built = await buildFromDescription(body.description, { game: body.game });
+
+    // resolve the named weapons against the roster so they carry real stats
+    const roster = catalogFor(built.game);
+    const weapons = (built.weapons || []).slice(0, MAX_SLOTS).map((pick) => {
+      const match = roster.find((w) => w.name.toLowerCase() === String(pick.name || '').toLowerCase()) ||
+        roster.find((w) => w.name.toLowerCase().includes(String(pick.name || '').toLowerCase()) && pick.name.length > 2);
+      const base = match ? structuredClone(match) : { name: pick.name || 'Custom weapon', category: 'other' };
+      return { ...base, attachmentIds: Array.isArray(pick.attachmentIds) ? pick.attachmentIds : [], matched: Boolean(match) };
+    });
+
+    return {
+      ...built,
+      profile: normalizeProfile({ ...built.profile, game: built.game }),
+      weapons,
+      unmatched: weapons.filter((w) => !w.matched).map((w) => w.name)
+    };
+  },
+
   'POST /api/check': async (body) => {
     if (!String(body.script || '').trim()) throw new Error('Paste a script to check.');
     return validateGpc(body.script);
@@ -194,7 +214,10 @@ export function createServer() {
       const body = req.method === 'GET' ? {} : await readBody(req);
       send(res, 200, await handler(body));
     } catch (err) {
-      const status = /too large|not valid|Unknown import|at least one|at most/i.test(err.message) ? 400 : 500;
+      // a bad request, a missing key or a missing input is the caller's problem,
+      // not a server fault - a 500 here just muddies the browser console
+      const status = /too large|not valid|unknown import|at least one|at most|needs an? .*key|needs the local|describe your|paste a script|no bundled roster|no class profiles/i
+        .test(err.message) ? 400 : 500;
       send(res, status, { error: err.message });
     }
   });

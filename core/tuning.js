@@ -39,6 +39,7 @@ export const DEFAULT_PROFILE = {
   adsSlowPercent: 100,         // 100 = off; 80 = right stick runs at 80% while firing
 
   /* ---- recoil control ---- */
+  antiRecoil: true,            // the master switch for the pull itself
   horizontalEnabled: true,     // apply horizontal correction at all
   rampSpeed: 'normal',         // 'instant' | 'fast' | 'normal' | 'slow' - how fast the pull fades in
   kickDelayTrim: 0,            // ms added to (or taken off) the first-shot delay
@@ -107,6 +108,7 @@ export function normalizeProfile(raw = {}) {
     autoPing: ['off', 'ads'].includes(p.autoPing) ? p.autoPing : 'off',
     adsSlowPercent: clamp(Math.round(Number(p.adsSlowPercent) ?? 100), 50, 100),
 
+    antiRecoil: p.antiRecoil !== false,
     horizontalEnabled: p.horizontalEnabled !== false,
     rampSpeed: RAMP_SPEEDS[p.rampSpeed] ? p.rampSpeed : 'normal',
     kickDelayTrim: clamp(Math.round(Number(p.kickDelayTrim) || 0), -150, 400),
@@ -230,6 +232,11 @@ export function computeTuning(weapon, rawProfile = {}) {
     );
   }
 
+  if (!profile.antiRecoil) {
+    diagnostics.push(`Anti-recoil switched off in the mods menu (it would have pulled ${peakV}).`);
+    peakV = 0;
+  }
+
   auto.antiRecoilVertical = peakV;
   if (weapon.attachments.length) {
     const applied = weapon.attachments.filter((a) => a.recoilVertical || a.recoilHorizontal || a.rpm || a.adsTime);
@@ -264,7 +271,8 @@ export function computeTuning(weapon, rawProfile = {}) {
       0,
       60
     ) * Math.sign(drift) * -1 || 0; // `|| 0` collapses -0, which would serialise oddly
-  if (!profile.horizontalEnabled && peakH !== 0) {
+  if (!profile.antiRecoil) peakH = 0;
+  if (profile.antiRecoil && !profile.horizontalEnabled && peakH !== 0) {
     diagnostics.push(`Horizontal correction switched off in your settings (would have been ${peakH}).`);
     peakH = 0;
   } else if (drift === 0) {
@@ -471,6 +479,16 @@ export function computeTuning(weapon, rawProfile = {}) {
     adsSlow: { enabled: profile.adsSlowPercent < 100, percent: profile.adsSlowPercent },
     shotPeriodMs: round(period),
     effectiveRpm: rpm,
+    mods: {
+      antiRecoil: profile.antiRecoil && peakV > 0,
+      stickyAim: sticky.enabled,
+      rapidFire: rapidFire.enabled,
+      hairTrigger: profile.hairTrigger,
+      antiDeadzone: antiDeadzone.enabled,
+      holdBreath: profile.holdBreath,
+      autoPing: profile.autoPing === 'ads',
+      adsSlow: profile.adsSlowPercent < 100
+    },
     diagnostics,
     overridden,
     auto,

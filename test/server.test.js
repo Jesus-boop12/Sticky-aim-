@@ -164,3 +164,13 @@ test('meta lists the aim assist options and custom targets', async () => {
     assert.deepEqual(meta.defaultProfile.customSettings, []);
   });
 });
+
+test('caller mistakes answer 400, not 500', async () => {
+  await withServer(async (base) => {
+    // every one of these is the caller's problem; a 500 would be wrong
+    assert.equal((await post(base, '/api/build', { description: 'anything' })).status, 400);
+    assert.equal((await post(base, '/api/check', {})).status, 400);
+    assert.equal((await post(base, '/api/generate', { weapons: [] })).status, 400);
+    assert.equal((await post(base, '/api/generate', { mode: 'universal', profile: { game: 'generic' } })).status, 400);
+  });
+});

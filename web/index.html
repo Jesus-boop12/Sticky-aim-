@@ -52,14 +52,31 @@
   <!-- ---------------- workspace ---------------- -->
   <section>
     <nav class="tabs" role="tablist">
-      <button role="tab" data-tab="import" aria-selected="true">1 · Import</button>
+      <button role="tab" data-tab="build" aria-selected="true">Build it for me</button>
+      <button role="tab" data-tab="import" aria-selected="false">1 · Import</button>
       <button role="tab" data-tab="tune" aria-selected="false">2 · Tune</button>
       <button role="tab" data-tab="script" aria-selected="false">3 · Script</button>
       <button role="tab" data-tab="coach" aria-selected="false">4 · Review</button>
     </nav>
 
+    <!-- BUILD -->
+    <div class="card" id="tab-build">
+      <h2>Tell it your setup</h2>
+      <p>Your settings, your guns, your attachments, and what you want the script to do — in your own words.
+        It picks the mods and the numbers, fills in every tab, and writes the script. Change anything
+        afterwards on the Tune tab.</p>
+      <textarea id="build-text" style="min-height:150px" placeholder="Warzone on Xbox. Sensitivity 7, ADS multiplier 0.9, dynamic curve, FOV 110.
+I run the MCW with a compensator, heavy stock and a 4x scope, and a Striker as my secondary.
+Strong recoil control, keep aim assist on, no rapid fire, and turn on hold breath for the sniper."></textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="btn-build">Build my script</button>
+        <span class="hint" id="build-status"></span>
+      </div>
+      <div id="build-result" hidden></div>
+    </div>
+
     <!-- IMPORT -->
-    <div class="card" id="tab-import">
+    <div class="card" id="tab-import" hidden>
       <div class="subtabs" role="tablist">
         <button role="tab" data-sub="catalog" aria-selected="true">Catalog</button>
         <button role="tab" data-sub="describe" aria-selected="false">Describe it</button>
@@ -139,7 +156,28 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
 
     <!-- TUNE -->
     <div class="card" id="tab-tune" hidden>
-      <h2>Your settings</h2>
+      <h2>Mods</h2>
+      <p class="hint">Everything the script can do, on or off. What each one is worth is set further down.</p>
+      <div class="mods-menu" id="mods-menu">
+        <label class="mod"><input type="checkbox" id="p-antiRecoil">
+          <span><b>Anti-recoil</b><i>Pulls the stick down against the gun's climb</i></span></label>
+        <label class="mod"><input type="checkbox" id="p-stickyAim">
+          <span><b>Sticky aim</b><i>Small continuous movement that keeps aim assist engaged</i></span></label>
+        <label class="mod"><input type="checkbox" id="p-hairTrigger">
+          <span><b>Hair triggers</b><i>Kills the dead travel on the analog triggers</i></span></label>
+        <label class="mod"><input type="checkbox" id="p-antiDeadzone">
+          <span><b>Anti-deadzone</b><i>Small stick inputs actually move the camera</i></span></label>
+        <label class="mod"><input type="checkbox" id="p-holdBreath">
+          <span><b>Hold breath</b><i>Holds the steady-aim button the whole time you are aiming</i></span></label>
+        <label class="mod"><input type="checkbox" id="m-autoPing">
+          <span><b>Auto ping</b><i>One ping each time you aim — it cannot see enemies</i></span></label>
+        <label class="mod"><input type="checkbox" id="m-rapidFire">
+          <span><b>Rapid fire</b><i>Pulses the trigger on semi-auto guns up to the game's cap</i></span></label>
+        <label class="mod"><input type="checkbox" id="m-adsSlow">
+          <span><b>Aim slowdown</b><i>Right stick runs slower while you are aiming</i></span></label>
+      </div>
+
+      <h2 style="margin-top:22px">Your settings</h2>
       <p class="hint">These come out of the game's options menu. They change every number the script uses.</p>
       <div class="grid-2" style="margin-top:12px">
         <label class="field">Controller <select id="p-controller"></select></label>
@@ -205,10 +243,7 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
 
       <h3 style="margin-top:20px">Sticky aim</h3>
       <p class="hint">A small continuous stick movement that keeps the game's aim assist engaged. Bigger is not better — past a few units it drags your aim.</p>
-      <div class="row" style="margin:10px 0">
-        <label class="toggle"><input type="checkbox" id="p-stickyAim"> Sticky aim on</label>
-      </div>
-      <div class="grid-2">
+      <div class="grid-2" style="margin-top:10px">
         <label class="field">Strength: <b id="p-stickyStrength-val">100%</b>
           <input id="p-stickyStrength" type="range" min="0" max="200" step="10">
         </label>
@@ -226,19 +261,6 @@ KATT-AMR,sniper,38,78,7,none"></textarea>
         </label>
         <label class="field">Aim slowdown while ADS: <b id="p-adsSlowPercent-val">off</b>
           <input id="p-adsSlowPercent" type="range" min="50" max="100" step="5">
-        </label>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <label class="toggle"><input type="checkbox" id="p-hairTrigger"> Hair triggers</label>
-        <label class="toggle"><input type="checkbox" id="p-antiDeadzone"> Anti-deadzone</label>
-        <label class="toggle"><input type="checkbox" id="p-holdBreath"> Hold breath while ADS</label>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <label class="field" style="max-width:280px">Auto ping
-          <select id="p-autoPing">
-            <option value="off">Off</option>
-            <option value="ads">One ping each time you aim</option>
-          </select>
         </label>
       </div>
 

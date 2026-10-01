@@ -18,7 +18,13 @@ const state = {
                    mode: 'slots', primary: 'ar', secondary: 'smg' }
 };
 
-const SETUP_STORE = 'stickyaim.setups.v1';
+const SETUP_STORE = 'zenstrike.setups.v1';
+const TABS = ['build', 'import', 'tune', 'script', 'coach'];
+
+function showTab(name) {
+  $$('.tabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  TABS.forEach((id) => { $(`#tab-${id}`).hidden = id !== name; });
+}
 
 /* ------------------------------------------------------------------ */
 /* plumbing                                                            */
@@ -170,6 +176,7 @@ function syncProfileInputs() {
     if (el.type === 'checkbox') el.checked = Boolean(value);
     else el.value = value;
   }
+  syncModsMenu();
   for (const [key, format] of Object.entries(RANGE_LABELS)) {
     const out = $(`#p-${key}-val`);
     if (out) out.textContent = format(state.profile[key]);
@@ -540,12 +547,35 @@ function wire() {
   // tabs
   $$('.tabs [role="tab"]').forEach((btn) => btn.addEventListener('click', () => {
     $$('.tabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
-    ['import', 'tune', 'script', 'coach'].forEach((id) => { $(`#tab-${id}`).hidden = id !== btn.dataset.tab; });
+    TABS.forEach((id) => { $(`#tab-${id}`).hidden = id !== btn.dataset.tab; });
   }));
   $$('.subtabs [role="tab"]').forEach((btn) => btn.addEventListener('click', () => {
     $$('.subtabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
     ['catalog', 'describe', 'screenshot', 'json', 'csv', 'manual']
       .forEach((id) => { $(`#sub-${id}`).hidden = id !== btn.dataset.sub; });
+  }));
+
+  // mods menu: the switches that drive a non-boolean setting
+  $('#m-rapidFire').addEventListener('change', (e) => {
+    state.profile.rapidFire = e.target.checked ? 'auto' : 'off';
+    $('#p-rapidFire').value = state.profile.rapidFire;
+    refresh();
+  });
+  $('#m-autoPing').addEventListener('change', (e) => {
+    state.profile.autoPing = e.target.checked ? 'ads' : 'off';
+    refresh();
+  });
+  $('#m-adsSlow').addEventListener('change', (e) => {
+    state.profile.adsSlowPercent = e.target.checked ? 85 : 100;
+    syncProfileInputs();
+    refresh();
+  });
+  $('#p-rapidFire').addEventListener('change', () => syncModsMenu());
+
+  // build it for me
+  $('#btn-build').addEventListener('click', (e) => withBusy(e.target, async () => {
+    const result = await api('/api/build', { description: $('#build-text').value, game: state.game });
+    applyBuild(result);
   }));
 
   // catalog search / filter
@@ -698,8 +728,7 @@ function wire() {
 
   $('#btn-generate').addEventListener('click', () => {
     if (state.scriptOptions.mode !== 'universal' && !state.weapons.length) return toast('Add a weapon first.', true);
-    $$('.tabs [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === 'script')));
-    ['import', 'tune', 'script', 'coach'].forEach((id) => { $(`#tab-${id}`).hidden = id !== 'script'; });
+    showTab('script');
     refresh();
   });
 
@@ -797,6 +826,62 @@ function wire() {
 }
 
 
+
+function syncModsMenu() {
+  const set = (id, on) => { const el = $(id); if (el) el.checked = Boolean(on); };
+  set('#m-rapidFire', state.profile.rapidFire !== 'off');
+  set('#m-autoPing', state.profile.autoPing === 'ads');
+  set('#m-adsSlow', (state.profile.adsSlowPercent ?? 100) < 100);
+}
+
+/**
+ * Take what the model worked out and fill the whole app in with it: settings,
+ * guns, attachments, mods. Everything stays editable afterwards.
+ */
+function applyBuild(result) {
+  if (result.game && state.meta.games.some((g) => g.id === result.game)) {
+    state.game = result.game;
+    $('#game').value = result.game;
+    renderCatalog();
+  }
+  state.profile = { ...state.meta.defaultProfile, ...result.profile };
+  state.weapons = (result.weapons || []).map((w) => ({ ...w, game: state.game }));
+  state.selected = 0;
+  state.scriptOptions.mode = result.universal ? 'universal' : 'slots';
+  $('#s-mode').value = state.scriptOptions.mode;
+
+  syncProfileInputs();
+  renderCustomSettings();
+  renderModButtons();
+  refresh();
+
+  const box = $('#build-result');
+  box.hidden = false;
+  box.innerHTML = `
+    <h3 style="margin-top:18px">What it set up</h3>
+    <p>${escapeHtml(result.explanation || '')}</p>
+    <div class="stat-row" style="margin:12px 0">
+      <div class="stat"><div class="k">Game</div><div class="v" style="font-size:15px">${escapeHtml(
+        state.meta.games.find((g) => g.id === state.game)?.name || state.game)}</div></div>
+      <div class="stat"><div class="k">Weapons</div><div class="v">${state.weapons.length}</div>
+        <div class="u">${escapeHtml(state.weapons.map((w) => w.name).join(', ') || 'universal')}</div></div>
+      <div class="stat"><div class="k">Sensitivity</div><div class="v">${state.profile.sensitivity}</div>
+        <div class="u">ADS x${state.profile.adsMultiplier}</div></div>
+    </div>
+    ${result.assumptions?.length ? `<h3>What it assumed</h3><ul class="diagnostics">${
+      result.assumptions.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}</ul>` : ''}
+    ${result.unmatched?.length ? `<ul class="diagnostics"><li class="warn">Not in the roster, so these use their
+      class baseline: ${escapeHtml(result.unmatched.join(', '))}</li></ul>` : ''}
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="btn-build-script">See the script</button>
+      <button class="ghost" id="btn-build-tune">Change the details</button>
+    </div>`;
+
+  $('#btn-build-script').addEventListener('click', () => showTab('script'));
+  $('#btn-build-tune').addEventListener('click', () => showTab('tune'));
+  $('#build-status').textContent = 'Built. Everything below is editable.';
+  toast('Built your setup.');
+}
 
 /* ---------------- your own in-game settings ---------------- */
 

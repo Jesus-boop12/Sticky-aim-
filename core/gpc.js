@@ -85,6 +85,7 @@ function extraModDefines(layout, tuning) {
   const lines = [];
   lines.push(`define BTN_BREATH  = ${layout.breath};   // steady aim / hold breath`);
   lines.push(`define BTN_PING    = ${layout.ping};   // ping - same button as D-pad up`);
+  lines.push(`define ANTI_RECOIL  = ${gpcBool(tuning.profile?.antiRecoil !== false)};`);
   lines.push(`define HOLD_BREATH   = ${gpcBool(tuning.holdBreath?.enabled)};`);
   lines.push(`define AUTO_PING     = ${gpcBool(tuning.autoPing?.mode === 'ads')};`);
   lines.push('define PING_HOLD     = 60;      // ms the ping button is held');
@@ -409,7 +410,7 @@ export function buildGpcScript(entries, options = {}) {
   extraModBlocks(first).forEach((line) => body.push(line));
   body.push('');
   body.push('    /* ---- anti-recoil ---- */');
-  body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
+  body.push('    if(mods_on && ANTI_RECOIL && firing && (!ADS_ONLY || aiming)) {');
   body.push('        fire_ms = fire_ms + get_rtime();');
   if (anyBurst) {
     body.push('        if(BURST_CYCLE[slot] > 0 && fire_ms > BURST_CYCLE[slot]) fire_ms = 0;   // next burst starts clean');
@@ -764,7 +765,7 @@ export function buildUniversalScript(classProfiles, options = {}) {
   extraModBlocks(first).forEach((line) => body.push(line));
   body.push('');
   body.push('    /* ---- anti-recoil for the class in your hands ---- */');
-  body.push('    if(mods_on && firing && (!ADS_ONLY || aiming)) {');
+  body.push('    if(mods_on && ANTI_RECOIL && firing && (!ADS_ONLY || aiming)) {');
   body.push('        fire_ms = fire_ms + get_rtime();');
   body.push('        idx = wclass * PHASES;');
   body.push('        if(fire_ms < PH_UNTIL[idx]) {');

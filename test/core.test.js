@@ -812,3 +812,34 @@ test('the new mods reach the universal script too', () => {
   assert.match(gpc, /combo_run\(PING_TAP\)/);
   assert.equal(validateGpc(gpc).ok, true);
 });
+
+test('the anti-recoil master switch zeroes the pull and gates the script', () => {
+  const w = catalogFor('warzone').find((x) => x.name === 'MCW');
+  const on = computeTuning(w, {});
+  const off = computeTuning(w, { antiRecoil: false });
+
+  assert.ok(on.antiRecoil.vertical > 0);
+  assert.equal(off.antiRecoil.vertical, 0);
+  assert.equal(off.antiRecoil.horizontal, 0);
+  assert.match(off.diagnostics.join(' '), /switched off in the mods menu \(it would have pulled \d+\)/);
+
+  assert.match(buildGpcScript([{ weapon: w, tuning: off }], {}), /define ANTI_RECOIL  = FALSE;/);
+  assert.match(buildGpcScript([{ weapon: w, tuning: on }], {}), /if\(mods_on && ANTI_RECOIL && firing/);
+});
+
+test('every mod reports its own on/off state for the menu', () => {
+  const w = catalogFor('warzone').find((x) => x.name === 'MCW');
+  const all = computeTuning(w, {
+    antiRecoil: true, stickyAim: true, hairTrigger: true, antiDeadzone: true,
+    holdBreath: true, autoPing: 'ads', adsSlowPercent: 85, rapidFire: 'on'
+  }).mods;
+  for (const key of ['antiRecoil', 'stickyAim', 'hairTrigger', 'antiDeadzone', 'holdBreath', 'autoPing', 'adsSlow']) {
+    assert.equal(all[key], true, `${key} should report on`);
+  }
+
+  const none = computeTuning(w, {
+    antiRecoil: false, stickyAim: false, hairTrigger: false, antiDeadzone: false,
+    holdBreath: false, autoPing: 'off', adsSlowPercent: 100, rapidFire: 'off'
+  }).mods;
+  for (const [key, value] of Object.entries(none)) assert.equal(value, false, `${key} should report off`);
+});
